@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simple Gacha (with Save)</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #222; color: white; }
+    button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+    .result { margin-top: 20px; font-size: 20px; }
+    .five { color: gold; font-weight: bold; }
+    .four { color: violet; }
+    .three { color: lightblue; }
+    .inventory { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
+    .inventory h2 { text-align: center; }
+    .inv-item { padding: 4px; border-bottom: 1px solid #444; }
+  </style>
+</head>
+<body>
+  <h1>🎲 Simple Gacha System</h1>
+  <p>You have <span id="currency">1600</span> Orbs</p>
+  <p>Pity: <span id="pity">0</span> / 90</p>
+  <button onclick="pull(1)">Pull 1 (160)</button>
+  <button onclick="pull(10)">Pull 10 (1600)</button>
+  <button onclick="resetGame()">Reset Game</button>
+  <div class="result" id="results"></div>
+
+  <div class="inventory">
+    <h2>Inventory</h2>
+    <div id="inventoryList">Empty</div>
+  </div>
+
+  <script>
+    // --- Default values ---
+    let orbs = 1600;
+    let pity = 0;
+    let inventory = [];
+
+    const pool = [
+      { name: "Aether", rarity: 5 },
+      { name: "Lumina", rarity: 5 },
+      { name: "Nero", rarity: 4 },
+      { name: "Mira", rarity: 4 },
+      { name: "Pip", rarity: 3 },
+      { name: "Taro", rarity: 3 },
+      { name: "Loki", rarity: 3 },
+    ];
+
+    const rates = { 5: 0.01, 4: 0.10, 3: 0.89 };
+
+    // --- Save & Load ---
+    function saveGame() {
+      const data = { orbs, pity, inventory };
+      localStorage.setItem("gachaSave", JSON.stringify(data));
+    }
+
+    function loadGame() {
+      const saved = localStorage.getItem("gachaSave");
+      if (saved) {
+        const data = JSON.parse(saved);
+        orbs = data.orbs;
+        pity = data.pity;
+        inventory = data.inventory;
+      }
+      updateUI();
+    }
+
+    function resetGame() {
+      if (!confirm("Reset everything?")) return;
+      orbs = 1600;
+      pity = 0;
+      inventory = [];
+      saveGame();
+      updateUI();
+    }
+
+    // --- Core Mechanics ---
+    function chooseRarity() {
+      if (pity >= 89) return 5; // pity system
+      let r = Math.random();
+      if (r < rates[5]) return 5;
+      if (r < rates[5] + rates[4]) return 4;
+      return 3;
+    }
+
+    function getCharacter(rarity) {
+      let list = pool.filter(c => c.rarity === rarity);
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function pull(times) {
+      let cost = times === 10 ? 1600 : 160;
+      if (orbs < cost) {
+        alert("Not enough orbs!");
+        return;
+      }
+      orbs -= cost;
+
+      let results = [];
+      for (let i = 0; i < times; i++) {
+        let rarity = chooseRarity();
+        let chara = getCharacter(rarity);
+        results.push(chara);
+        inventory.push(chara);
+        if (rarity === 5) pity = 0; else pity++;
+      }
+
+      saveGame();
+      updateUI();
+      showResults(results);
+    }
+
+    // --- UI ---
+    function showResults(list) {
+      let html = "<h2>Results:</h2>";
+      list.forEach(c => {
+        let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
+        html += `<div class="${cls}">${c.name} (${c.rarity}★)</div>`;
+      });
+      document.getElementById("results").innerHTML = html;
+    }
+
+    function updateUI() {
+      document.getElementById("currency").innerText = orbs;
+      document.getElementById("pity").innerText = pity;
+      const invEl = document.getElementById("inventoryList");
+      if (inventory.length === 0) {
+        invEl.innerHTML = "Empty";
+      } else {
+        invEl.innerHTML = inventory.map((c, i) => {
+          let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
+          return `<div class="inv-item ${cls}">${c.name} (${c.rarity}★)</div>`;
+        }).join("");
+      }
+    }
+
+    // --- Initialize ---
+    loadGame();
+  </script>
+</body>
+</html>
