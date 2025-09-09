@@ -1,28 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Simple Gacha (with Save)</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; background: #222; color: white; }
-    button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
-    .result { margin-top: 20px; font-size: 20px; }
-    .five { color: gold; font-weight: bold; }
-    .four { color: violet; }
-    .three { color: lightblue; }
-    .inventory { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
-    .inventory h2 { text-align: center; }
-    .inv-item { padding: 4px; border-bottom: 1px solid #444; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Drop Pod</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; background: #222; color: white; }
+  button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+  .result { margin-top: 20px; font-size: 20px; }
+  .five { color: gold; font-weight: bold; }
+  .four { color: violet; }
+  .three { color: lightblue; }
+  .inventory { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
+  .inventory h2 { text-align: center; }
+  .inv-item { padding: 4px; border-bottom: 1px solid #444; }
+</style>
 </head>
 <body>
-  <h1>🎲 Test Gacha System</h1>
-  <p>You have <span id="currency">3200</span> Backup</p>
-  <p>Pity: <span id="pity">0</span> / 90</p>
+  <h1>🚀 Drop Pod</h1>
+  <p>You have <span id="orbs">1600</span> Orbs</p>
+  <button onclick="earnOrbs()">Earn 200 Orbs</button>
+  <br/>
   <button onclick="pull(1)">Pull 1 (160)</button>
   <button onclick="pull(10)">Pull 10 (1600)</button>
   <button onclick="resetGame()">Reset Game</button>
+
   <div class="result" id="results"></div>
 
   <div class="inventory">
@@ -31,10 +33,10 @@
   </div>
 
   <script>
-    // --- Default values ---
-    let orbs = 1600;
-    let pity = 0;
-    let inventory = [];
+    // --- Load saved data ---
+    let orbs = localStorage.getItem("dropPodOrbs") ? parseInt(localStorage.getItem("dropPodOrbs")) : 1600;
+    let pity = localStorage.getItem("dropPodPity") ? parseInt(localStorage.getItem("dropPodPity")) : 0;
+    let inventory = localStorage.getItem("dropPodInventory") ? JSON.parse(localStorage.getItem("dropPodInventory")) : [];
 
     const pool = [
       { name: "NICO Theseus", rarity: 10 },
@@ -52,33 +54,6 @@
 
     const rates = { 7: 0.01, 6: 0.08, 5: 0.13, 4: 0.20, 3: 0.70 };
 
-    // --- Save & Load ---
-    function saveGame() {
-      const data = { orbs, pity, inventory };
-      localStorage.setItem("gachaSave", JSON.stringify(data));
-    }
-
-    function loadGame() {
-      const saved = localStorage.getItem("gachaSave");
-      if (saved) {
-        const data = JSON.parse(saved);
-        orbs = data.orbs;
-        pity = data.pity;
-        inventory = data.inventory;
-      }
-      updateUI();
-    }
-
-    function resetGame() {
-      if (!confirm("Reset everything?")) return;
-      orbs = 1600;
-      pity = 0;
-      inventory = [];
-      saveGame();
-      updateUI();
-    }
-
-    // --- Core Mechanics ---
     function chooseRarity() {
       if (pity >= 89) return 5; // pity system
       let r = Math.random();
@@ -94,10 +69,7 @@
 
     function pull(times) {
       let cost = times === 10 ? 1600 : 160;
-      if (orbs < cost) {
-        alert("Not enough orbs!");
-        return;
-      }
+      if (orbs < cost) { alert("Not enough Orbs!"); return; }
       orbs -= cost;
 
       let results = [];
@@ -114,7 +86,6 @@
       showResults(results);
     }
 
-    // --- UI ---
     function showResults(list) {
       let html = "<h2>Results:</h2>";
       list.forEach(c => {
@@ -124,22 +95,40 @@
       document.getElementById("results").innerHTML = html;
     }
 
-    function updateUI() {
-      document.getElementById("currency").innerText = orbs;
-      document.getElementById("pity").innerText = pity;
-      const invEl = document.getElementById("inventoryList");
-      if (inventory.length === 0) {
-        invEl.innerHTML = "Empty";
-      } else {
-        invEl.innerHTML = inventory.map((c, i) => {
-          let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
-          return `<div class="inv-item ${cls}">${c.name} (${c.rarity}★)</div>`;
-        }).join("");
-      }
+    function earnOrbs() {
+      orbs += 200;
+      saveGame();
+      updateUI();
+      alert("You earned 200 Orbs!");
     }
 
-    // --- Initialize ---
-    loadGame();
+    function resetGame() {
+      if (!confirm("Reset everything?")) return;
+      orbs = 1600;
+      pity = 0;
+      inventory = [];
+      saveGame();
+      updateUI();
+    }
+
+    function saveGame() {
+      localStorage.setItem("dropPodOrbs", orbs);
+      localStorage.setItem("dropPodPity", pity);
+      localStorage.setItem("dropPodInventory", JSON.stringify(inventory));
+    }
+
+    function updateUI() {
+      document.getElementById("orbs").innerText = orbs;
+      document.getElementById("inventoryList").innerHTML = inventory.length === 0
+        ? "Empty"
+        : inventory.map(c => {
+            let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
+            return `<div class="inv-item ${cls}">${c.name} (${c.rarity}★)</div>`;
+          }).join("");
+    }
+
+    // --- Initialize UI ---
+    updateUI();
   </script>
 </body>
 </html>
