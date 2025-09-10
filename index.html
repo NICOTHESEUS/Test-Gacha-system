@@ -39,24 +39,6 @@ button:disabled { background: #555; cursor: not-allowed; }
 .flash-8 { animation: glow 0.8s ease-in-out 1; background-color: darkorange; color: black; border-radius: 5px; }
 .flash-7 { animation: glow 0.8s ease-in-out 1; background-color: orange; color: black; border-radius: 5px; }
 .flash-6 { animation: glow 0.8s ease-in-out 1; background-color: purple; color: white; border-radius: 5px; }
-
-/* Sparkle / star effects */
-@keyframes sparkle {
-  0% { transform: scale(0.5); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1); opacity: 0; }
-}
-.sparkle {
-  position: absolute;
-  width: 50px; height: 50px;
-  border-radius: 50%;
-  pointer-events: none;
-  animation: sparkle 0.6s ease-out forwards;
-}
-.star-10 { background: gold; box-shadow: 0 0 20px gold; }
-.star-9 { background: yellow; box-shadow: 0 0 15px yellow; }
-.star-8 { background: darkorange; box-shadow: 0 0 15px darkorange; }
-.star-7, .star-6 { background: orange; box-shadow: 0 0 10px orange; }
 </style>
 </head>
 <body>
@@ -139,15 +121,7 @@ function playPullEffect(rarity){
   else if(rarity===7) document.getElementById('sound-7').play();
   else if(rarity===6) document.getElementById('sound-6').play();
   else document.getElementById('sound-low').play();
-
-  if(rarity>=6){
-    let sparkle=document.createElement('div');
-    sparkle.className=`sparkle ${rarity===10?'star-10':rarity===9?'star-9':rarity===8?'star-8':'star-7'}`;
-    sparkle.style.top=(window.innerHeight/2 + Math.random()*100-50)+'px';
-    sparkle.style.left=(window.innerWidth/2 + Math.random()*100-50)+'px';
-    document.body.appendChild(sparkle);
-    setTimeout(()=>document.body.removeChild(sparkle),600);
-  }
+  // Sparkle/animation removed
 }
 
 function showAlert(msg){ document.getElementById('alertMsg').innerText=msg; }
