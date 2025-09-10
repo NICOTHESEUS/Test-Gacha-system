@@ -32,13 +32,13 @@
     <div id="inventoryList">Empty</div>
   </div>
 
-  <script>
-    // --- Load saved data ---
-    let orbs = localStorage.getItem("dropPodOrbs") ? parseInt(localStorage.getItem("dropPodOrbs")) : 1600;
-    let pity = localStorage.getItem("dropPodPity") ? parseInt(localStorage.getItem("dropPodPity")) : 0;
-    let inventory = localStorage.getItem("dropPodInventory") ? JSON.parse(localStorage.getItem("dropPodInventory")) : [];
+<script>
+  // --- Load saved data ---
+  let orbs = localStorage.getItem("dropPodOrbs") ? parseInt(localStorage.getItem("dropPodOrbs")) : 1600;
+  let pity = localStorage.getItem("dropPodPity") ? parseInt(localStorage.getItem("dropPodPity")) : 0;
+  let inventory = localStorage.getItem("dropPodInventory") ? JSON.parse(localStorage.getItem("dropPodInventory")) : [];
 
-    const pool = [
+  const pool = [
       { name: "NICO Theseus", rarity: 10 },
       { name: "FREDRIK Astartes", rarity: 7 },
       { name: "Osiris", rarity: 9 },
@@ -50,85 +50,97 @@
       { name: "Placeholder 3", rarity: 3 },
       { name: "Placeholder 2", rarity: 3 },
       { name: "Placeholder 1", rarity: 3 },
-    ];
 
     const rates = { 7: 0.01, 6: 0.08, 5: 0.13, 4: 0.20, 3: 0.70 };
 
-    function chooseRarity() {
-      if (pity >= 89) return 5; // pity system
-      let r = Math.random();
-      if (r < rates[5]) return 5;
-      if (r < rates[5] + rates[4]) return 4;
-      return 3;
+  function chooseRarity() {
+    if (pity >= 89) return 5; // pity system
+    let r = Math.random();
+    if (r < rates[5]) return 5;
+    if (r < rates[5] + rates[4]) return 4;
+    return 3;
+  }
+
+  function getCharacter(rarity) {
+    let list = pool.filter(c => c.rarity === rarity);
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function pull(times) {
+    let cost = times === 10 ? 1600 : 160;
+    if (orbs < cost) { alert("Not enough Orbs!"); return; }
+    orbs -= cost;
+
+    let results = [];
+    for (let i = 0; i < times; i++) {
+      let rarity = chooseRarity();
+      let chara = getCharacter(rarity);
+      results.push(chara);
+      addToInventory(chara);
+      if (rarity === 5) pity = 0; else pity++;
     }
 
-    function getCharacter(rarity) {
-      let list = pool.filter(c => c.rarity === rarity);
-      return list[Math.floor(Math.random() * list.length)];
-    }
-
-    function pull(times) {
-      let cost = times === 10 ? 1600 : 160;
-      if (orbs < cost) { alert("Not enough Orbs!"); return; }
-      orbs -= cost;
-
-      let results = [];
-      for (let i = 0; i < times; i++) {
-        let rarity = chooseRarity();
-        let chara = getCharacter(rarity);
-        results.push(chara);
-        inventory.push(chara);
-        if (rarity === 5) pity = 0; else pity++;
-      }
-
-      saveGame();
-      updateUI();
-      showResults(results);
-    }
-
-    function showResults(list) {
-      let html = "<h2>Results:</h2>";
-      list.forEach(c => {
-        let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
-        html += `<div class="${cls}">${c.name} (${c.rarity}★)</div>`;
-      });
-      document.getElementById("results").innerHTML = html;
-    }
-
-    function earnOrbs() {
-      orbs += 200;
-      saveGame();
-      updateUI();
-      alert("You earned 200 Orbs!");
-    }
-
-    function resetGame() {
-      if (!confirm("Reset everything?")) return;
-      orbs = 1600;
-      pity = 0;
-      inventory = [];
-      saveGame();
-      updateUI();
-    }
-
-    function saveGame() {
-      localStorage.setItem("dropPodOrbs", orbs);
-      localStorage.setItem("dropPodPity", pity);
-      localStorage.setItem("dropPodInventory", JSON.stringify(inventory));
-    }
-
-    function updateUI() {
-      document.getElementById("orbs").innerText = orbs;
-      document.getElementById("inventoryList").innerHTML = inventory.length === 0
-        ? "Empty"
-        : inventory.map(c => {
-            let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
-            return `<div class="inv-item ${cls}">${c.name} (${c.rarity}★)</div>`;
-          }).join("");
-    }
-
-    // --- Initialize UI ---
+    saveGame();
     updateUI();
-  </script>
+    showResults(results);
+  }
+
+  // --- Merge system ---
+  function addToInventory(newChar) {
+    // Check if same name + rarity exists
+    let found = inventory.find(c => c.name === newChar.name && c.rarity === newChar.rarity);
+    if (found) {
+      found.level = found.level ? found.level + 1 : 2; // increase level on merge
+    } else {
+      inventory.push({ ...newChar, level: 1 });
+    }
+  }
+
+  function showResults(list) {
+    let html = "<h2>Results:</h2>";
+    list.forEach(c => {
+      let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
+      html += `<div class="${cls}">${c.name} (${c.rarity}★)</div>`;
+    });
+    document.getElementById("results").innerHTML = html;
+  }
+
+  function earnOrbs() {
+    orbs += 200;
+    saveGame();
+    updateUI();
+  }
+
+  function resetGame() {
+    if (!confirm("Reset everything?")) return;
+    orbs = 1600;
+    pity = 0;
+    inventory = [];
+    saveGame();
+    updateUI();
+  }
+
+  function saveGame() {
+    localStorage.setItem("dropPodOrbs", orbs);
+    localStorage.setItem("dropPodPity", pity);
+    localStorage.setItem("dropPodInventory", JSON.stringify(inventory));
+  }
+
+  function updateUI() {
+    document.getElementById("orbs").innerText = orbs;
+    const invEl = document.getElementById("inventoryList");
+    if (inventory.length === 0) {
+      invEl.innerHTML = "Empty";
+    } else {
+      invEl.innerHTML = inventory.map(c => {
+        let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
+        return `<div class="inv-item ${cls}">${c.name} (${c.rarity}★) Lv.${c.level}</div>`;
+      }).join("");
+    }
+  }
+
+  // --- Initialize UI ---
+  updateUI();
+</script>
 </body>
 </html>
