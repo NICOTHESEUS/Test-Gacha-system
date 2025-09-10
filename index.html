@@ -8,9 +8,13 @@
   body { font-family: Arial, sans-serif; text-align: center; background: #222; color: white; }
   button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
   .result { margin-top: 20px; font-size: 20px; }
-  .five { color: gold; font-weight: bold; }
-  .four { color: violet; }
-  .three { color: lightblue; }
+  .r10 { color: white; font-weight: bold; background: gold; padding: 2px 6px; border-radius: 4px; }
+  .r9 { color: gold; font-weight: bold; }
+  .r7 { color: orange; font-weight: bold; }
+  .r6 { color: violet; }
+  .r5 { color: pink; }
+  .r4 { color: cyan; }
+  .r3 { color: lightblue; }
   .inventory { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
   .inventory h2 { text-align: center; }
   .inv-item { padding: 4px; border-bottom: 1px solid #444; }
@@ -33,31 +37,34 @@
   </div>
 
 <script>
-  // --- Load saved data ---
   let orbs = localStorage.getItem("dropPodOrbs") ? parseInt(localStorage.getItem("dropPodOrbs")) : 1600;
   let pity = localStorage.getItem("dropPodPity") ? parseInt(localStorage.getItem("dropPodPity")) : 0;
   let inventory = localStorage.getItem("dropPodInventory") ? JSON.parse(localStorage.getItem("dropPodInventory")) : [];
 
   const pool = [
-      { name: "NICO Theseus", rarity: 10 },
-      { name: "FREDRIK Astartes", rarity: 7 },
-      { name: "Osiris", rarity: 9 },
-      { name: "Architect", rarity: 9 },
-      { name: "Placeholder 7", rarity: 6 },
-      { name: "Placeholder 6", rarity: 5 },
-      { name: "Placeholder 5", rarity: 4 },
-      { name: "Placeholder 4", rarity: 3 },
-      { name: "Placeholder 3", rarity: 3 },
-      { name: "Placeholder 2", rarity: 3 },
-      { name: "Placeholder 1", rarity: 3 },
+    { name: "NICO Theseus", rarity: 10 },
+    { name: "FREDRIK Astartes", rarity: 7 },
+    { name: "Osiris", rarity: 9 },
+    { name: "Architect", rarity: 9 },
+    { name: "Placeholder 7", rarity: 6 },
+    { name: "Placeholder 6", rarity: 5 },
+    { name: "Placeholder 5", rarity: 4 },
+    { name: "Placeholder 4", rarity: 3 },
+    { name: "Placeholder 3", rarity: 3 },
+    { name: "Placeholder 2", rarity: 3 },
+    { name: "Placeholder 1", rarity: 3 },
+  ];
 
-    const rates = { 7: 0.01, 6: 0.08, 5: 0.13, 4: 0.20, 3: 0.70 };
+  const rates = { 10: 0.005, 9: 0.02, 7: 0.01, 6: 0.08, 5: 0.13, 4: 0.20, 3: 0.70 };
 
   function chooseRarity() {
-    if (pity >= 89) return 5; // pity system
     let r = Math.random();
-    if (r < rates[5]) return 5;
-    if (r < rates[5] + rates[4]) return 4;
+    let sum = 0;
+    const keys = Object.keys(rates).sort((a,b) => b-a);
+    for (let k of keys) {
+      sum += rates[k];
+      if (r <= sum) return parseInt(k);
+    }
     return 3;
   }
 
@@ -77,7 +84,6 @@
       let chara = getCharacter(rarity);
       results.push(chara);
       addToInventory(chara);
-      if (rarity === 5) pity = 0; else pity++;
     }
 
     saveGame();
@@ -85,12 +91,10 @@
     showResults(results);
   }
 
-  // --- Merge system ---
   function addToInventory(newChar) {
-    // Check if same name + rarity exists
     let found = inventory.find(c => c.name === newChar.name && c.rarity === newChar.rarity);
     if (found) {
-      found.level = found.level ? found.level + 1 : 2; // increase level on merge
+      found.level = found.level ? found.level + 1 : 2;
     } else {
       inventory.push({ ...newChar, level: 1 });
     }
@@ -99,7 +103,7 @@
   function showResults(list) {
     let html = "<h2>Results:</h2>";
     list.forEach(c => {
-      let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
+      let cls = "r" + c.rarity;
       html += `<div class="${cls}">${c.name} (${c.rarity}★)</div>`;
     });
     document.getElementById("results").innerHTML = html;
@@ -109,6 +113,7 @@
     orbs += 200;
     saveGame();
     updateUI();
+    // alert removed
   }
 
   function resetGame() {
@@ -133,13 +138,12 @@
       invEl.innerHTML = "Empty";
     } else {
       invEl.innerHTML = inventory.map(c => {
-        let cls = c.rarity === 5 ? "five" : c.rarity === 4 ? "four" : "three";
+        let cls = "r" + c.rarity;
         return `<div class="inv-item ${cls}">${c.name} (${c.rarity}★) Lv.${c.level}</div>`;
       }).join("");
     }
   }
 
-  // --- Initialize UI ---
   updateUI();
 </script>
 </body>
