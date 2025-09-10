@@ -7,6 +7,7 @@
 <style>
 body { font-family: Arial, sans-serif; text-align: center; background: #222; color: white; transition: background 0.3s; }
 button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+button:disabled { background: #555; cursor: not-allowed; }
 .result { margin-top: 20px; font-size: 20px; }
 .alert { margin-top: 10px; color: red; font-weight: bold; }
 .r10 { color: white; font-weight: bold; background: gold; padding: 2px 6px; border-radius: 4px; }
@@ -19,11 +20,11 @@ button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
 .inventory { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
 .inventory h2 { text-align: center; }
 .inv-item { padding: 6px; border-bottom: 1px solid #444; margin-bottom: 4px; cursor: pointer; }
+.inv-item.selected { border: 2px solid limegreen; background: #333; }
 .stats { font-size: 14px; color: #ccc; margin-top: 2px; }
 .exp-bar-container { background: #444; width: 100%; height: 10px; border-radius: 5px; margin-top: 4px; }
 .exp-bar { background: limegreen; height: 100%; border-radius: 5px; transition: width 0.3s; }
-.exp-text { font-size: 12px; color: #ccc; margin-top: 2px; }
-.upgrade-buttons { margin-top: 6px; }
+.upgrade-buttons { margin-top: 6px; text-align: center; }
 .upgrade-buttons button { font-size: 12px; padding: 2px 6px; margin: 2px; }
 </style>
 </head>
@@ -51,6 +52,7 @@ let orbs = localStorage.getItem("dropPodOrbs") ? parseInt(localStorage.getItem("
 let pity = localStorage.getItem("dropPodPity") ? parseInt(localStorage.getItem("dropPodPity")) : 0;
 let inventory = localStorage.getItem("dropPodInventory") ? JSON.parse(localStorage.getItem("dropPodInventory")) : [];
 let scrap = localStorage.getItem("dropPodScrap") ? parseInt(localStorage.getItem("dropPodScrap")) : 0;
+let selectedCharIndex = null;
 
 const pool = [
   { name: "NICO Theseus", rarity: 10 },
@@ -70,17 +72,32 @@ const rates = {10:0.005,9:0.02,7:0.01,6:0.08,5:0.13,4:0.20,3:0.70};
 const baseStats = {10:{hp:2000,atk:300,def:150},9:{hp:1500,atk:200,def:100},7:{hp:1000,atk:150,def:80},6:{hp:800,atk:120,def:60},5:{hp:600,atk:100,def:50},4:{hp:400,atk:80,def:30},3:{hp:200,atk:50,def:20}};
 const maxLevel = {3:20,4:25,5:30,6:35,7:40,9:50,10:60};
 
-// Select character to upgrade
-let selectedCharIndex = null;
+function chooseRarity() {
+  pity++;
+  let r = Math.random();
+  let sum = 0;
+  const keys = Object.keys(rates).sort((a,b)=>b-a);
+  for(let k of keys){
+    let chance=rates[k];
+    if(k==10 && pity>=50) chance=1;
+    sum+=chance;
+    if(r<=sum){
+      if(parseInt(k)===10) pity=0;
+      return parseInt(k);
+    }
+  }
+  return 3;
+}
 
-function chooseRarity(){pity++;let r=Math.random();let sum=0;const keys=Object.keys(rates).sort((a,b)=>b-a);for(let k of keys){let chance=rates[k];if(k==10 && pity>=50) chance=1;sum+=chance;if(r<=sum){if(parseInt(k)===10) pity=0;return parseInt(k);}}return 3;}
-function getCharacter(rarity){let list=pool.filter(c=>c.rarity===rarity);return list[Math.floor(Math.random()*list.length)];}
+function getCharacter(rarity){
+  let list = pool.filter(c=>c.rarity===rarity);
+  return list[Math.floor(Math.random()*list.length)];
+}
 
 function pull(times){
   let cost = times===10?1600:160;
   if(orbs<cost){ showAlert("Not enough Orbs!"); return; }
-  orbs -= cost; clearAlert();
-
+  orbs-=cost; clearAlert();
   let results=[]; let rareFlash=false;
   for(let i=0;i<times;i++){
     let rarity = chooseRarity();
@@ -89,27 +106,27 @@ function pull(times){
     addToInventory(chara);
     if(rarity>=9) rareFlash=true;
   }
-  if(rareFlash){ document.body.style.backgroundColor='#444'; setTimeout(()=>document.body.style.backgroundColor='#222',300); }
+  if(rareFlash){ document.body.style.backgroundColor='#444'; setTimeout(()=>document.body.style.backgroundColor='#222',300);}
   saveGame(); updateUI(); showResults(results);
 }
 
 function addToInventory(newChar){
   let found = inventory.find(c=>c.name===newChar.name && c.rarity===newChar.rarity);
   if(found){
-    if(found.level < maxLevel[found.rarity]){
-      found.exp = (found.exp||0)+1;
+    if(found.level<maxLevel[found.rarity]){
+      found.exp=(found.exp||0)+1;
       let expNeeded = found.level*2;
-      while(found.exp >= expNeeded && found.level < maxLevel[found.rarity]){
-        found.exp -= expNeeded; found.level++;
-        found.stats.hp = Math.round(baseStats[found.rarity].hp*(1+(found.level-1)*0.1));
-        found.stats.atk = Math.round(baseStats[found.rarity].atk*(1+(found.level-1)*0.1));
-        found.stats.def = Math.round(baseStats[found.rarity].def*(1+(found.level-1)*0.1));
-        expNeeded = found.level*2;
+      while(found.exp>=expNeeded && found.level<maxLevel[found.rarity]){
+        found.exp-=expNeeded;
+        found.level++;
+        found.stats.hp=Math.round(baseStats[found.rarity].hp*(1+(found.level-1)*0.1));
+        found.stats.atk=Math.round(baseStats[found.rarity].atk*(1+(found.level-1)*0.1));
+        found.stats.def=Math.round(baseStats[found.rarity].def*(1+(found.level-1)*0.1));
+        expNeeded=found.level*2;
       }
     } else {
-      // Max level → grant scrap
-      let scrapGain = Math.floor(Math.random()*6)+5; // 5-10 scrap
-      scrap += scrapGain;
+      let scrapGain = Math.floor(Math.random()*6)+5;
+      scrap+=scrapGain;
       showAlert(`Extra duplicate! Gained ${scrapGain} scrap.`);
     }
   } else {
@@ -117,15 +134,22 @@ function addToInventory(newChar){
   }
 }
 
-function showResults(list){ let html="<h2>Results:</h2>"; list.forEach(c=>{ let cls="r"+c.rarity; html+=`<div class="${cls}">${c.name} (${c.rarity}★)</div>`; }); document.getElementById("results").innerHTML=html; }
+function showResults(list){
+  let html="<h2>Results:</h2>";
+  list.forEach(c=>{
+    let cls="r"+c.rarity;
+    html+=`<div class="${cls}">${c.name} (${c.rarity}★)</div>`;
+  });
+  document.getElementById("results").innerHTML=html;
+}
 
-function earnOrbs(){ orbs+=200; saveGame(); updateUI(); }
-function resetGame(){ if(!confirm("Reset everything?")) return; orbs=1600;pity=0;inventory=[];scrap=0;saveGame();updateUI();clearAlert(); }
+function earnOrbs(){ orbs+=200; saveGame(); updateUI();}
+function resetGame(){ if(!confirm("Reset everything?")) return; orbs=1600;pity=0;inventory=[];scrap=0;selectedCharIndex=null; saveGame(); updateUI(); clearAlert();}
 
 function upgradeStat(index, stat){
-  let char = inventory[index];
   if(scrap<=0){ showAlert("Not enough scrap!"); return; }
-  let gain = Math.floor(Math.random()*6)+5; // +5-10%
+  let char = inventory[index];
+  let gain = Math.floor(Math.random()*6)+5;
   char.stats[stat] = Math.round(char.stats[stat]*(1+gain/100));
   scrap--; saveGame(); updateUI();
 }
@@ -141,10 +165,31 @@ function updateUI(){
   document.getElementById("orbs").innerText=orbs;
   document.getElementById("scrap").innerText=scrap;
   document.getElementById("pity").innerText=pity;
-  const invEl = document.getElementById("inventoryList");
+  const invEl=document.getElementById("inventoryList");
   if(inventory.length===0){ invEl.innerHTML="Empty"; return; }
   inventory.sort((a,b)=>b.rarity-a.rarity || a.name.localeCompare(b.name));
   invEl.innerHTML = inventory.map((c,i)=>{
     let cls="r"+c.rarity;
     let expPercent = (c.level<maxLevel[c.rarity]) ? (c.exp/(c.level*2))*100 : 100;
-    let expText = (c.level
+    let expText = (c.level<maxLevel[c.rarity]) ? `EXP: ${c.exp}/${c.level*2}` : "MAX";
+    let selectedCls = (i===selectedCharIndex) ? "selected" : "";
+    return `<div class="inv-item ${cls} ${selectedCls}" onclick="selectedCharIndex=${i}; updateUI();">
+      ${c.name} (${c.rarity}★) Lv.${c.level} [${expText}]
+      <div class="stats">HP: ${c.stats.hp} | ATK: ${c.stats.atk} | DEF: ${c.stats.def}</div>
+      <div class="exp-bar-container"><div class="exp-bar" style="width:${expPercent}%;"></div></div>
+      <div class="upgrade-buttons">
+        <button onclick="event.stopPropagation(); upgradeStat(${i},'hp');" ${scrap<=0?"disabled":""}>+HP</button>
+        <button onclick="event.stopPropagation(); upgradeStat(${i},'atk');" ${scrap<=0?"disabled":""}>+ATK</button>
+        <button onclick="event.stopPropagation(); upgradeStat(${i},'def');" ${scrap<=0?"disabled":""}>+DEF</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function showAlert(msg){ document.getElementById("alertMsg").innerText=msg; }
+function clearAlert(){ document.getElementById("alertMsg").innerText=""; }
+
+updateUI();
+</script>
+</body>
+</html>
