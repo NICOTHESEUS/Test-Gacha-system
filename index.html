@@ -8,10 +8,11 @@
 body { font-family: Arial, sans-serif; text-align: center; background: #222; color: white; transition: background 0.3s; }
 button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
 button:disabled { background: #555; cursor: not-allowed; }
-.result { margin-top: 20px; font-size: 20px; }
+.result { margin-top: 20px; font-size: 20px; position: relative; }
 .alert { margin-top: 10px; color: red; font-weight: bold; }
 .r10 { color: white; font-weight: bold; background: gold; padding: 2px 6px; border-radius: 4px; }
 .r9 { color: gold; font-weight: bold; }
+.r8 { color: darkorange; font-weight: bold; }
 .r7 { color: orange; font-weight: bold; }
 .r6 { color: violet; }
 .r5 { color: pink; }
@@ -26,6 +27,36 @@ button:disabled { background: #555; cursor: not-allowed; }
 .exp-bar { background: limegreen; height: 100%; border-radius: 5px; transition: width 0.3s; }
 .upgrade-buttons { margin-top: 6px; text-align: center; }
 .upgrade-buttons button { font-size: 12px; padding: 2px 6px; margin: 2px; }
+
+/* Glow animation for 6★+ */
+@keyframes glow {
+  0% { box-shadow: 0 0 5px white; }
+  50% { box-shadow: 0 0 15px white; }
+  100% { box-shadow: 0 0 5px white; }
+}
+.flash-10 { animation: glow 0.8s ease-in-out 1; background-color: gold; color: black; border-radius: 5px; }
+.flash-9 { animation: glow 0.8s ease-in-out 1; background-color: yellow; color: black; border-radius: 5px; }
+.flash-8 { animation: glow 0.8s ease-in-out 1; background-color: darkorange; color: black; border-radius: 5px; }
+.flash-7 { animation: glow 0.8s ease-in-out 1; background-color: orange; color: black; border-radius: 5px; }
+.flash-6 { animation: glow 0.8s ease-in-out 1; background-color: purple; color: white; border-radius: 5px; }
+
+/* Sparkle / star effects */
+@keyframes sparkle {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+.sparkle {
+  position: absolute;
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: sparkle 0.6s ease-out forwards;
+}
+.star-10 { background: gold; box-shadow: 0 0 20px gold; }
+.star-9 { background: yellow; box-shadow: 0 0 15px yellow; }
+.star-8 { background: darkorange; box-shadow: 0 0 15px darkorange; }
+.star-7, .star-6 { background: orange; box-shadow: 0 0 10px orange; }
 </style>
 </head>
 <body>
@@ -47,6 +78,13 @@ button:disabled { background: #555; cursor: not-allowed; }
 <div id="inventoryList">Empty</div>
 </div>
 
+<audio id="sound-10" src="sound-10.mp3"></audio>
+<audio id="sound-9" src="sound-9.mp3"></audio>
+<audio id="sound-8" src="sound-8.mp3"></audio>
+<audio id="sound-7" src="sound-7.mp3"></audio>
+<audio id="sound-6" src="sound-6.mp3"></audio>
+<audio id="sound-low" src="sound-low.mp3"></audio>
+
 <script>
 let orbs = localStorage.getItem("dropPodOrbs") ? parseInt(localStorage.getItem("dropPodOrbs")) : 1600;
 let pity = localStorage.getItem("dropPodPity") ? parseInt(localStorage.getItem("dropPodPity")) : 0;
@@ -56,57 +94,76 @@ let selectedCharIndex = null;
 
 const pool = [
   { name: "NICO Theseus", rarity: 10 },
-  { name: "FREDRIK Astartes", rarity: 7 },
-  { name: "Osiris", rarity: 9 },
-  { name: "Architect", rarity: 9 },
-  { name: "Placeholder 7", rarity: 6 },
-  { name: "Placeholder 6", rarity: 5 },
-  { name: "Placeholder 5", rarity: 4 },
-  { name: "Placeholder 4", rarity: 3 },
+  { name: "FREDRIK Astartes", rarity: 9 },
+  { name: "Osiris", rarity: 8 },
+  { name: "Architect", rarity: 8 },
+  { name: "Placeholder 7", rarity: 7 },
+  { name: "Placeholder 6", rarity: 6 },
+  { name: "Placeholder 5", rarity: 5 },
+  { name: "Placeholder 4", rarity: 4 },
   { name: "Placeholder 3", rarity: 3 },
   { name: "Placeholder 2", rarity: 3 },
   { name: "Placeholder 1", rarity: 3 },
 ];
 
-const rates = {10:0.005,9:0.02,7:0.01,6:0.08,5:0.13,4:0.20,3:0.70};
-const baseStats = {10:{hp:2000,atk:300,def:150},9:{hp:1500,atk:200,def:100},7:{hp:1000,atk:150,def:80},6:{hp:800,atk:120,def:60},5:{hp:600,atk:100,def:50},4:{hp:400,atk:80,def:30},3:{hp:200,atk:50,def:20}};
-const maxLevel = {3:20,4:25,5:30,6:35,7:40,9:50,10:60};
+const rates = {10:0.002,9:0.005,8:0.008,7:0.01,6:0.08,5:0.13,4:0.20,3:0.565};
+const baseStats = {10:{hp:2000,atk:300,def:150},9:{hp:1500,atk:200,def:100},8:{hp:1200,atk:180,def:90},7:{hp:1000,atk:150,def:80},6:{hp:800,atk:120,def:60},5:{hp:600,atk:100,def:50},4:{hp:400,atk:80,def:30},3:{hp:200,atk:50,def:20}};
+const maxLevel = {3:20,4:25,5:30,6:35,7:40,8:45,9:50,10:60};
 
 function chooseRarity() {
-  pity++;
   let r = Math.random();
   let sum = 0;
   const keys = Object.keys(rates).sort((a,b)=>b-a);
-  for(let k of keys){
-    let chance=rates[k];
-    if(k==10 && pity>=50) chance=1;
-    sum+=chance;
-    if(r<=sum){
-      if(parseInt(k)===10) pity=0;
+  for (let k of keys) {
+    let chance = rates[k];
+    if(k==10 && pity>=80) chance=1;
+    sum += chance;
+    if(r <= sum){
+      if(parseInt(k)===10) pity=0; else pity++;
       return parseInt(k);
     }
   }
+  pity++;
   return 3;
 }
 
-function getCharacter(rarity){
-  let list = pool.filter(c=>c.rarity===rarity);
+function getCharacter(rarity){ 
+  let list = pool.filter(c=>c.rarity===rarity); 
   return list[Math.floor(Math.random()*list.length)];
 }
+
+function playPullEffect(rarity){
+  if(rarity>=10) document.getElementById('sound-10').play();
+  else if(rarity===9) document.getElementById('sound-9').play();
+  else if(rarity===8) document.getElementById('sound-8').play();
+  else if(rarity===7) document.getElementById('sound-7').play();
+  else if(rarity===6) document.getElementById('sound-6').play();
+  else document.getElementById('sound-low').play();
+
+  if(rarity>=6){
+    let sparkle=document.createElement('div');
+    sparkle.className=`sparkle ${rarity===10?'star-10':rarity===9?'star-9':rarity===8?'star-8':'star-7'}`;
+    sparkle.style.top=(window.innerHeight/2 + Math.random()*100-50)+'px';
+    sparkle.style.left=(window.innerWidth/2 + Math.random()*100-50)+'px';
+    document.body.appendChild(sparkle);
+    setTimeout(()=>document.body.removeChild(sparkle),600);
+  }
+}
+
+function showAlert(msg){ document.getElementById('alertMsg').innerText=msg; }
+function clearAlert(){ document.getElementById('alertMsg').innerText=''; }
 
 function pull(times){
   let cost = times===10?1600:160;
   if(orbs<cost){ showAlert("Not enough Orbs!"); return; }
   orbs-=cost; clearAlert();
-  let results=[]; let rareFlash=false;
+  let results=[];
   for(let i=0;i<times;i++){
     let rarity = chooseRarity();
     let chara = getCharacter(rarity);
     results.push(chara);
     addToInventory(chara);
-    if(rarity>=9) rareFlash=true;
   }
-  if(rareFlash){ document.body.style.backgroundColor='#444'; setTimeout(()=>document.body.style.backgroundColor='#222',300);}
   saveGame(); updateUI(); showResults(results);
 }
 
@@ -115,7 +172,7 @@ function addToInventory(newChar){
   if(found){
     if(found.level<maxLevel[found.rarity]){
       found.exp=(found.exp||0)+1;
-      let expNeeded = found.level*2;
+      let expNeeded=found.level*2;
       while(found.exp>=expNeeded && found.level<maxLevel[found.rarity]){
         found.exp-=expNeeded;
         found.level++;
@@ -138,21 +195,14 @@ function showResults(list){
   let html="<h2>Results:</h2>";
   list.forEach(c=>{
     let cls="r"+c.rarity;
-    html+=`<div class="${cls}">${c.name} (${c.rarity}★)</div>`;
+    html+=`<div class="${cls}">${c.name} (${c.rarity}★) Lv.${(inventory.find(i=>i.name===c.name && i.rarity===c.rarity)||{}).level||1}</div>`;
+    playPullEffect(c.rarity);
   });
-  document.getElementById("results").innerHTML=html;
+  document.getElementById('results').innerHTML=html;
 }
 
-function earnOrbs(){ orbs+=200; saveGame(); updateUI();}
-function resetGame(){ if(!confirm("Reset everything?")) return; orbs=1600;pity=0;inventory=[];scrap=0;selectedCharIndex=null; saveGame(); updateUI(); clearAlert();}
-
-function upgradeStat(index, stat){
-  if(scrap<=0){ showAlert("Not enough scrap!"); return; }
-  let char = inventory[index];
-  let gain = Math.floor(Math.random()*6)+5;
-  char.stats[stat] = Math.round(char.stats[stat]*(1+gain/100));
-  scrap--; saveGame(); updateUI();
-}
+function earnOrbs(){ orbs+=200; saveGame(); updateUI(); }
+function resetGame(){ if(!confirm("Reset everything?")) return; orbs=1600;pity=0;inventory=[];scrap=0;saveGame();updateUI(); clearAlert(); }
 
 function saveGame(){
   localStorage.setItem("dropPodOrbs",orbs);
@@ -161,33 +211,52 @@ function saveGame(){
   localStorage.setItem("dropPodScrap",scrap);
 }
 
+function selectChar(index){
+  selectedCharIndex=index;
+  const items=document.querySelectorAll('.inv-item');
+  items.forEach(i=>i.classList.remove('selected'));
+  items[index].classList.add('selected');
+  updateUI();
+}
+
+function upgradeStat(stat){
+  if(selectedCharIndex===null) return;
+  const chara = inventory[selectedCharIndex];
+  if(scrap<5){ showAlert("Not enough scrap!"); return; }
+  scrap -=5;
+  const increase = Math.round(baseStats[chara.rarity][stat]*0.1);
+  chara.stats[stat] += increase;
+  showAlert(`${chara.name}'s ${stat.toUpperCase()} increased by ${increase}!`);
+  saveGame(); updateUI();
+}
+
 function updateUI(){
   document.getElementById("orbs").innerText=orbs;
   document.getElementById("scrap").innerText=scrap;
   document.getElementById("pity").innerText=pity;
   const invEl=document.getElementById("inventoryList");
-  if(inventory.length===0){ invEl.innerHTML="Empty"; return; }
-  inventory.sort((a,b)=>b.rarity-a.rarity || a.name.localeCompare(b.name));
-  invEl.innerHTML = inventory.map((c,i)=>{
+  if(inventory.length===0){ 
+    invEl.innerHTML="Empty"; 
+    return; 
+  }
+  invEl.innerHTML=inventory.map((c,i)=>{
     let cls="r"+c.rarity;
-    let expPercent = (c.level<maxLevel[c.rarity]) ? (c.exp/(c.level*2))*100 : 100;
-    let expText = (c.level<maxLevel[c.rarity]) ? `EXP: ${c.exp}/${c.level*2}` : "MAX";
-    let selectedCls = (i===selectedCharIndex) ? "selected" : "";
-    return `<div class="inv-item ${cls} ${selectedCls}" onclick="selectedCharIndex=${i}; updateUI();">
-      ${c.name} (${c.rarity}★) Lv.${c.level} [${expText}]
-      <div class="stats">HP: ${c.stats.hp} | ATK: ${c.stats.atk} | DEF: ${c.stats.def}</div>
-      <div class="exp-bar-container"><div class="exp-bar" style="width:${expPercent}%;"></div></div>
+    let upgradeHTML = "";
+    if(selectedCharIndex===i){
+      upgradeHTML = `
       <div class="upgrade-buttons">
-        <button onclick="event.stopPropagation(); upgradeStat(${i},'hp');" ${scrap<=0?"disabled":""}>+HP</button>
-        <button onclick="event.stopPropagation(); upgradeStat(${i},'atk');" ${scrap<=0?"disabled":""}>+ATK</button>
-        <button onclick="event.stopPropagation(); upgradeStat(${i},'def');" ${scrap<=0?"disabled":""}>+DEF</button>
-      </div>
+        <button onclick="upgradeStat('hp')">+HP</button>
+        <button onclick="upgradeStat('atk')">+ATK</button>
+        <button onclick="upgradeStat('def')">+DEF</button>
+      </div>`;
+    }
+    return `<div class="inv-item ${cls}" onclick="selectChar(${i})">
+      ${c.name} (${c.rarity}★) Lv.${c.level}
+      <div class="stats">HP:${c.stats.hp} ATK:${c.stats.atk} DEF:${c.stats.def} EXP:${c.exp}/${c.level*2}</div>
+      ${upgradeHTML}
     </div>`;
   }).join("");
 }
-
-function showAlert(msg){ document.getElementById("alertMsg").innerText=msg; }
-function clearAlert(){ document.getElementById("alertMsg").innerText=""; }
 
 updateUI();
 </script>
