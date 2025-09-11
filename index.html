@@ -1,204 +1,434 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Web Game</title>
-  <script src="https://cdn.jsdelivr.net/npm/firebase@9.1.3/firebase-app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/firebase@9.1.3/firebase-firestore.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide-react@0.1.5"></script>
-  <script src="https://cdn.jsdelivr.net/npm/framer-motion@3.3.0"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galactic Drop Pod</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #222;
+      color: white;
+      margin: 0;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 20px;
+    }
+    .inventory, #achievementPanel, #battlePreview {
+      margin-top: 20px;
+      padding: 10px;
+      border: 2px solid #555;
+      border-radius: 12px;
+      background: #111;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .inv-item {
+      padding: 4px;
+      border-bottom: 1px solid #444;
+      cursor: pointer;
+    }
+    .r3, .r4, .r5 {
+      color: lightblue;
+      font-weight: bold;
+    }
+    .r6 {
+      color: violet;
+      font-weight: bold;
+    }
+    .r7 {
+      color: orange;
+      font-weight: bold;
+    }
+    .r8 {
+      color: darkorange;
+      font-weight: bold;
+    }
+    .r9 {
+      color: gold;
+      font-weight: bold;
+    }
+    .r10 {
+      color: white;
+      background: gold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      animation: glow 1.5s infinite;
+    }
+    #mapPanel {
+      position: relative;
+      height: 300px;
+      background: #111;
+      margin-top: 10px;
+      border-radius: 12px;
+    }
+    #gameNotifications {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 250px;
+      z-index: 9999;
+    }
+    #bossHealthContainer {
+      width: 80%;
+      height: 20px;
+      background: #333;
+      border-radius: 10px;
+      margin: 5px auto;
+      display: none;
+    }
+    #bossHealthBar {
+      height: 100%;
+      width: 100%;
+      background: red;
+      border-radius: 10px;
+    }
+    #loginPanel {
+      margin-top: 50px;
+    }
+    #playerInfo {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+    #playerAvatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+    #syncControls {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #syncStatus {
+      margin-left: 5px;
+    }
+    #lastSynced {
+      margin-left: 5px;
+    }
+    @keyframes notifSlide {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      10% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      90% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+    }
+    @keyframes glow {
+      0% {
+        box-shadow: 0 0 5px gold;
+      }
+      50% {
+        box-shadow: 0 0 20px gold;
+      }
+      100% {
+        box-shadow: 0 0 5px gold;
+      }
+    }
+    @media (max-width: 600px) {
+      #mapPanel {
+        height: 200px;
+      }
+      .inventory,
+      #achievementPanel,
+      #battlePreview {
+        max-width: 95%;
+      }
+    }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  
-  <script>
-    // Firebase configuration
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-    const app = firebase.initializeApp(firebaseConfig);
-    const firestore = firebase.firestore();
 
-    let userId = "testUserId"; // Replace with actual user ID
-    let inventory = []; // Holds all user units (units to battle)
-    let userProgress = {}; // Stores user progress data (e.g., orbs, scrap)
-    let isLoading = true;
+<!-- LOGIN PANEL -->
+<div id="loginPanel">
+  <h2>🚀 Galactic Drop Pod</h2>
+  <button onclick="googleLogin()">Login with Google</button>
+</div>
 
-    // Firestore load data function
-    useEffect(() => {
-      loadData();
-    }, []);
+<!-- GAME PANEL -->
+<div id="gamePanel" style="display:none;">
+  <div id="playerInfo">
+    <img id="playerAvatar" src="" alt="Avatar"/>
+    <span id="playerName">Player</span>
+  </div>
 
-    const loadData = async () => {
-      try {
-        // Fetch user progress and units from Firebase Firestore
-        const progressSnapshot = await firestore.collection('userProgress').doc(userId).get();
-        const userUnitsSnapshot = await firestore.collection('units').where('userId', '==', userId).get();
+  <div id="resourceBar" style="display:flex;gap:20px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
+    <div>🚀 Orbs: <span id="orbsDisplay">1600</span></div>
+    <div>🔧 Scrap: <span id="scrapDisplay">0</span></div>
+    <div>💎 Boss Scrap: <span id="bossScrapDisplay">0</span></div>
+    <div>💥 Overdrive: <span id="overdriveDisplay">None</span></div>
+  </div>
 
-        if (progressSnapshot.exists) {
-          setUserProgress(progressSnapshot.data());
-        } else {
-          const newProgress = await UserProgress.create({});
-          setUserProgress(newProgress);
-        }
+  <div style="margin-top:15px;">
+    <button onclick="pull(1)">Pull 1 (160 Orbs)</button>
+    <button onclick="pull(10)">Pull 10 (1600 Orbs)</button>
+    <button onclick="earnOrbs()">Earn 200 Orbs</button>
+    <button onclick="resetGame()">Reset Game</button>
+  </div>
 
-        const userUnits = userUnitsSnapshot.docs.map(doc => doc.data());
-        setUnits(userUnits);
-      } catch (error) {
-        console.error('Error loading data:', error);
-      }
-      setIsLoading(false);
-    };
+  <div class="result" id="results"></div>
 
-    // UI loading spinner
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
-        </div>
-      );
+  <div class="inventory">
+    <h3>Units</h3>
+    <div id="unitListPanel">Empty</div>
+  </div>
+
+  <div id="battlePreview">
+    <div id="combatLog"></div>
+    <div id="bossHealthContainer">
+      <div id="bossHealthBar"></div>
+    </div>
+  </div>
+
+  <div id="mapPanel"></div>
+
+  <div id="achievementPanel">
+    <h3>Achievements</h3>
+    <div id="achievementList"></div>
+  </div>
+
+  <!-- SYNC CONTROLS -->
+  <div id="syncControls">
+    <button onclick="syncUpload()">⬆ Upload</button>
+    <button onclick="syncDownload()">⬇ Download</button>
+    <button onclick="syncAll()">🔄 Sync All</button>
+    <span id="syncIcon">❌</span> <span id="syncStatus">Offline</span>
+    <span id="lastSynced">Never</span>
+  </div>
+</div>
+
+<div id="gameNotifications"></div>
+
+<script>
+// ---------------- FIREBASE ----------------
+const firebaseConfig = {
+  apiKey: "AIzaSyDlfDBnFHP78CnP7H_J6fU40-R_2sq3gRU",
+  authDomain: "basegame-4c97c.firebaseapp.com",
+  projectId: "basegame-4c97c",
+  storageBucket: "basegame-4c97c.appspot.com",
+  messagingSenderId: "275532742335",
+  appId: "1:275532742335:web:dcdabf04452470054dd00a",
+  measurementId: "G-ZDNWTVJT2E"
+};
+firebase.initializeApp(firebaseConfig);
+const analytics = firebase.analytics();
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ---------------- LOGIN ----------------
+function googleLogin() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider)
+    .then(result => {
+      const user = result.user;
+      document.getElementById("playerName").innerText = user.displayName;
+      document.getElementById("playerAvatar").src = user.photoURL;
+      document.getElementById("loginPanel").style.display = "none";
+      document.getElementById("gamePanel").style.display = "block";
+      loadGameData(user.uid);
+      showNotification(`Logged in as ${user.displayName}`);
+    }).catch(err => alert(err.message));
+}
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById("playerName").innerText = user.displayName;
+    document.getElementById("playerAvatar").src = user.photoURL;
+    document.getElementById("loginPanel").style.display = "none";
+    document.getElementById("gamePanel").style.display = "block";
+    loadGameData(user.uid);
+  } else {
+    document.getElementById("loginPanel").style.display = "block";
+    document.getElementById("gamePanel").style.display = "none";
+  }
+});
+
+// ---------------- GAME STATE ----------------
+let orbs = 1600, scrap = 0, bossScrapA = 0;
+let pullCount = 0, legendaryBossesDefeated = 0, eliteEventsDefeated = 0;
+let activeOverdrives = [], inventory = [];
+let currentUID = "";
+
+// Gacha pool and rates
+let pool = [
+  { name: "NICO Theseus", rarity: 10 }, { name: "FREDRIK Astartes", rarity: 7 },
+  { name: "Osiris", rarity: 9 }, { name: "Architect", rarity: 9 },
+  { name: "Placeholder 7", rarity: 6 }, { name: "Placeholder 6", rarity: 5 },
+  { name: "Placeholder 5", rarity: 4 }, { name: "Placeholder 4", rarity: 3 },
+  { name: "Placeholder 3", rarity: 3 }, { name: "Placeholder 2", rarity: 3 },
+  { name: "Placeholder 1", rarity: 3 }
+];
+const rawRates = { 10: 0.008, 9: 0.02, 8: 0.008, 7: 0.01, 6: 0.08, 5: 0.13, 4: 0.20, 3: 0.70 };
+const totalRate = Object.values(rawRates).reduce((a, b) => a + b, 0);
+const rates = {};
+for (let k in rawRates) { rates[k] = rawRates[k] / totalRate; }
+
+// ---------------- UTILITY FUNCTIONS ----------------
+function showNotification(msg, duration = 3000) {
+  const notif = document.createElement("div");
+  notif.innerText = msg;
+  notif.style.background = "#333";
+  notif.style.padding = "8px";
+  notif.style.marginTop = "5px";
+  notif.style.borderRadius = "6px";
+  notif.style.animation = `notifSlide ${duration / 1000}s ease forwards`;
+  document.getElementById("gameNotifications").appendChild(notif);
+  setTimeout(() => notif.remove(), duration);
+}
+
+function chooseRarity() {
+  let r = Math.random(), sum = 0;
+  const keys = Object.keys(rates).sort((a, b) => b - a);
+  for (let k of keys) { sum += rates[k]; if (r <= sum) return parseInt(k); }
+  return 3;
+}
+
+function getCharacter(rarity) {
+  const list = pool.filter(c => c.rarity === rarity);
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+// ---------------- INVENTORY ----------------
+function addToInventory(newChar) {
+  let found = inventory.find(c => c.name === newChar.name);
+  if (found) {
+    found.level = Math.min(10, found.level + 1);
+  } else {
+    inventory.push({ ...newChar, level: 1, hp: 100, attack: 10, defense: 5, weapons: [], armor: [] });
+  }
+}
+
+// ---------------- GACHA ----------------
+function pull(times) {
+  const costPerPull = 160;
+  const totalCost = costPerPull * times;
+  if (orbs < totalCost) { alert("Not enough Orbs!"); return; }
+  orbs -= totalCost;
+  pullCount += times;
+  let results = [];
+  for (let i = 0; i < times; i++) {
+    let rarity = chooseRarity();
+    let chara = getCharacter(rarity);
+    results.push(chara);
+    addToInventory(chara);
+  }
+  updateUI(); showResults(results); checkAchievements(); saveGameData();
+}
+
+function showResults(list) {
+  let html = "<h4>Results:</h4>";
+  list.forEach(c => { let cls = "r" + c.rarity; html += `<div class="${cls}">${c.name} (${c.rarity}★)</div>`; });
+  document.getElementById("results").innerHTML = html;
+}
+
+// ---------------- ACHIEVEMENTS ----------------
+function earnOrbs() { orbs += 200; saveGameData(); updateUI(); }
+function resetGame() {
+  if (!confirm("Reset everything?")) return;
+  orbs = 1600; scrap = 0; bossScrapA = 0; inventory = []; pullCount = 0; legendaryBossesDefeated = 0; eliteEventsDefeated = 0;
+  activeOverdrives = []; saveGameData(); updateUI();
+}
+
+function checkAchievements() {
+  achievements.forEach(a => {
+    if (!a.unlocked && a.condition()) { a.unlocked = true; claimAchievementReward(a); }
+  });
+  renderAchievements();
+}
+
+function claimAchievementReward(a) {
+  if (a.reward.orbs) orbs += a.reward.orbs;
+  if (a.reward.scrap) scrap += a.reward.scrap;
+  if (a.reward.bossScrap) bossScrapA += a.reward.bossScrap;
+  showNotification(`🏆 Achievement Unlocked: ${a.name}! Reward: ${JSON.stringify(a.reward)}`);
+  saveGameData();
+}
+
+// ---------------- SAVE / LOAD ----------------
+function saveGameData() {
+  if (!currentUID) return;
+  db.collection("users").doc(currentUID).set({
+    orbs, scrap, bossScrapA, pullCount, legendaryBossesDefeated, eliteEventsDefeated, activeOverdrives, inventory,
+    lastSynced: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => updateSyncStatus("online"))
+  .catch(err => { console.error("Save Error:", err); updateSyncStatus("offline"); });
+}
+
+function mergeInventory(cloudInventory) {
+  cloudInventory.forEach(cloudItem => {
+    const localItem = inventory.find(item => item.name === cloudItem.name);
+    if (localItem) {
+      localItem.level = Math.max(localItem.level, cloudItem.level);  // Merge levels
+    } else {
+      inventory.push(cloudItem);  // Add new items from cloud
     }
+  });
+}
 
-    // Mission System & Battle Logic
-    function startMission(name) {
-      const mission = { name: name, difficulty: 1, baseHP: 100, enemies: 3, boss: false, reward: { scrap: 50, bossScrap: 0 } };
-      const battleDiv = document.getElementById("battlePreview");
-      battleDiv.innerHTML += `<div id="combatAnimation" style="position:relative;width:100%;height:150px;"></div>`;
-      const animDiv = document.getElementById("combatAnimation");
-
-      let totalEnemies = mission.enemies;
-      let missionHP = mission.baseHP;
-
-      function simulateTurn(i) {
-        if (i >= totalEnemies) {
-          scrap += mission.reward.scrap;
-          bossScrapA += mission.reward.bossScrap;
-          if (mission.boss) legendaryBossesDefeated++;
-          showNotification(`✅ Mission Completed! Loot: ${mission.reward.scrap} Scrap${mission.reward.bossScrap > 0 ? ', ' + mission.reward.bossScrap + ' Boss Scrap' : ''}`);
-          checkAchievements(); checkUnlocks(); saveAll(); updateUI();
-          return;
-        }
-
-        let unit = inventory[Math.floor(Math.random() * inventory.length)];
-        if (!unit) return;
-
-        let damage = Math.floor(Math.random() * 10 + 5);
-        missionHP -= damage;
-        showDamageNumber(animDiv, damage);
-        battleDiv.innerHTML += `<div style="font-size:14px;">${unit.name} dealt ${damage} damage!</div>`;
-
-        let enemyDamage = Math.floor(Math.random() * 5 + 3);
-        unit.hp = Math.max(0, unit.hp - enemyDamage);
-        showDamageNumber(animDiv, enemyDamage, false);
-        battleDiv.innerHTML += `<div style="font-size:14px;color:red;">Enemy dealt ${enemyDamage} damage to ${unit.name}</div>`;
-
-        setTimeout(() => simulateTurn(i + 1), 500);
-      }
-
-      simulateTurn(0);
+// ---------------- LOAD GAME ----------------
+function loadGameData(uid) {
+  currentUID = uid;
+  db.collection("users").doc(uid).get().then(doc => {
+    if (doc.exists) {
+      const cloud = doc.data();
+      mergeInventory(cloud.inventory || []);
+      orbs = cloud.orbs ?? 1600;
+      scrap = cloud.scrap ?? 0;
+      bossScrapA = cloud.bossScrapA ?? 0;
+      pullCount = cloud.pullCount ?? 0;
+      legendaryBossesDefeated = cloud.legendaryBossesDefeated ?? 0;
+      eliteEventsDefeated = cloud.eliteEventsDefeated ?? 0;
+      activeOverdrives = cloud.activeOverdrives ?? [];
+      showNotification("☁ Cloud Save Loaded");
+    } else {
+      saveGameData();
+      showNotification("💾 No Cloud Save found, local save uploaded");
     }
-
-    function showDamageNumber(parent, damage, crit = false) {
-      const el = document.createElement("div");
-      el.style.position = "absolute";
-      el.style.color = crit ? "red" : "yellow";
-      el.style.fontWeight = "bold";
-      el.style.fontSize = "16px";
-      el.style.top = "50%"; el.style.left = "50%";
-      el.innerText = "-" + damage;
-      parent.appendChild(el);
-
-      let y = 0;
-      let opacity = 1;
-      const anim = setInterval(() => {
-        y++; opacity -= 0.03;
-        el.style.top = (50 - y) + "%";
-        el.style.opacity = opacity;
-        if (opacity <= 0) { clearInterval(anim); el.remove(); }
-      }, 30);
-    }
-
-    // Unit Inventory Management
-    let equipmentInventory = []; // holds weapons & armor
-
-    function installEquipment(unit, equip) {
-      let weaponSlots = 1;
-      if (unit.rarity >= 7 && unit.rarity < 10) weaponSlots = 2;
-      if (unit.rarity === 10) weaponSlots = 3;
-
-      let armorSlots = 4;
-      if (unit.weapons && unit.weapons.length >= weaponSlots) return showNotification("All weapon slots full!");
-
-      if (!unit.weapons) unit.weapons = [];
-      unit.weapons.push(equip); // Add new equipment (weapon) to unit
-      saveUnitToFirestore(unit); // Save the updated unit in Firestore
-    }
-
-    // Add new Unit
-    const addNewUnit = async () => {
-      const newUnit = {
-        name: "New Warrior",
-        type: "Warrior",
-        level: 1,
-        hp: 100,
-        rarity: 5,
-        weapons: [] // No weapons initially
-      };
-
-      await firestore.collection('units').add({
-        ...newUnit,
-        userId: userId // Link this unit to user
-      });
-
-      loadData(); // Reload data
-    };
-
-    // Unit Display in UI
-    const renderUnitListPanel = () => {
-      const panel = document.getElementById("unitListPanel");
-      panel.innerHTML = "";
-      inventory.forEach(u => {
-        const div = document.createElement("div");
-        div.className = "inv-item r" + u.rarity;
-        div.innerText = `${u.name} Lv.${u.level} HP:${u.hp}`;
-        panel.appendChild(div);
-      });
-    };
-
-    // Update UI
-    const updateUI = () => {
-      document.getElementById("orbsDisplay").innerText = orbs;
-      document.getElementById("scrapDisplay").innerText = scrap;
-      document.getElementById("bossScrapDisplay").innerText = bossScrapA;
-      document.getElementById("overdriveDisplay").innerText = activeOverdrives.length > 0 ? activeOverdrives.map(o => o.name).join(",") : "None";
-      renderUnitListPanel(); renderMap(); renderAchievements();
-    };
-
-    // Render map for planets (Galaxy Progression)
-    const renderMap = () => {
-      const mapPanel = document.getElementById("mapPanel");
-      mapPanel.innerHTML = "";
-      galaxyProgression.forEach(loc => {
-        const marker = document.createElement("div");
-        marker.style.position = "absolute"; marker.style.width = "50px"; marker.style.height = "50px";
-        marker.style.borderRadius = "50%"; marker.style.left = loc.x + "px"; marker.style.top = loc.y + "px";
-        marker.style.background = loc.unlocked ? "#0af" : "#444";
-        marker.title = loc.name + (loc.unlocked ? "" : " (Locked)");
-        if (loc.unlocked) marker.onclick = () => previewBattle({ name: loc.name, difficulty: 1, baseHP: 100, enemies: 3, boss: false, reward: { scrap: 50, bossScrap: 0 } });
-        mapPanel.appendChild(marker);
-      });
-    };
-
-    // Initialize app (on load)
     updateUI();
-    renderMap();
-    renderAchievements();
-  </script>
+  }).catch(err => { console.error(err); updateSyncStatus("offline"); showNotification("❌ Failed to load Cloud Save"); });
+}
+
+// ---------------- SYNC ----------------
+function syncUpload() { saveGameData(); }
+function syncDownload() { if (currentUID) loadGameData(currentUID); }
+function syncAll() { if (currentUID) { loadGameData(currentUID); saveGameData(); showNotification("🔄 Synced All"); } }
+
+function updateSyncStatus(status) {
+  document.getElementById("syncStatus").innerText = status.charAt(0).toUpperCase() + status.slice(1);
+  document.getElementById("syncIcon").innerText = status === "online" ? "✅" : "❌";
+}
+
+// ---------------- AUTO SAVE ----------------
+window.addEventListener("beforeunload", saveGameData);
+
+// ---------------- INITIALIZE ----------------
+updateUI(); renderMap(); renderAchievements();
+</script>
 </body>
 </html>
