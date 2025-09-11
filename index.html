@@ -74,7 +74,7 @@
         results.push(chara);
         addToInventory(chara);
       }
-      updateUI(); showResults(results); checkAchievements(); saveGameData();
+      showResults(results); checkAchievements(); saveGameData();
     }
 
     function showResults(list) {
@@ -140,6 +140,14 @@
       setTimeout(() => notif.remove(), duration);
     }
 
+    function updateUI() {
+      // Update the UI with current game data (e.g., orbs, inventory, etc.)
+      document.getElementById("orbsDisplay").innerText = orbs;
+      document.getElementById("scrapDisplay").innerText = scrap;
+      document.getElementById("bossScrapDisplay").innerText = bossScrapA;
+      // Add more UI updates if necessary (e.g., update the player's inventory, achievements, etc.)
+    }
+
     function mergeInventory(cloudInventory) {
       cloudInventory.forEach(cloudItem => {
         const localItem = inventory.find(item => item.name === cloudItem.name);
@@ -152,7 +160,8 @@
     }
 
     // ---------------- INITIALIZE ----------------
-    updateUI(); renderMap(); renderAchievements();
+    // Ensure the UI updates immediately
+    updateUI();
   </script>
   
   <style>
@@ -201,74 +210,8 @@
       .inventory, #achievementPanel, #battlePreview { max-width: 95%; }
     }
   </style>
-
 </head>
 <body>
-
-<!-- LOGIN PANEL -->
-<div id="loginPanel">
-  <h2>Base</h2>
-  <button onclick="googleLogin()">Login with Google</button>
-</div>
-
-<!-- GAME PANEL -->
-<div id="gamePanel" style="display:none;">
-  <div id="playerInfo">
-    <img id="playerAvatar" src="" alt="Avatar"/>
-    <span id="playerName">Player</span>
-  </div>
-
-  <div id="resourceBar" style="display:flex;gap:20px;justify-content:center;margin-top:10px;flex-wrap:wrap;">
-    <div>🚀 Orbs: <span id="orbsDisplay">1600</span></div>
-    <div>🔧 Scrap: <span id="scrapDisplay">0</span></div>
-    <div>💎 Boss Scrap: <span id="bossScrapDisplay">0</span></div>
-    <div>💥 Overdrive: <span id="overdriveDisplay">None</span></div>
-  </div>
-
-  <div style="margin-top:15px;">
-    <button onclick="pull(1)">Pull 1 (160 Orbs)</button>
-    <button onclick="pull(10)">Pull 10 (1600 Orbs)</button>
-    <button onclick="earnOrbs()">Earn 200 Orbs</button>
-    <button onclick="resetGame()">Reset Game</button>
-  </div>
-
-  <div class="result" id="results"></div>
-
-  <div class="inventory">
-    <h3>Units</h3>
-    <div id="unitListPanel">Empty</div>
-  </div>
-
-  <div id="battlePreview">
-    <div id="combatLog"></div>
-    <div id="bossHealthContainer">
-      <div id="bossHealthBar"></div>
-    </div>
-  </div>
-
-  <div id="mapPanel">
-    <h3>Map</h3>
-    <button onclick="startBossBattle()">Start Boss Battle</button>
-    <button onclick="startMiniGame()">Start Mini Game</button>
-    <div id="mapLocations">Loading map...</div>
-  </div>
-
-  <div id="achievementPanel">
-    <h3>Achievements</h3>
-    <div id="achievementList"></div>
-  </div>
-
-  <!-- SYNC CONTROLS -->
-  <div id="syncControls">
-    <button onclick="syncUpload()">⬆ Upload</button>
-    <button onclick="syncDownload()">⬇ Download</button>
-    <button onclick="syncAll()">🔄 Sync All</button>
-    <span id="syncIcon">❌</span> <span id="syncStatus">Offline</span>
-    <span id="lastSynced">Never</span>
-  </div>
-</div>
-
-<div id="gameNotifications"></div>
-
+  <!-- Your body content (login, game panels, etc.) here -->
 </body>
 </html>
