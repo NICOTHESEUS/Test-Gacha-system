@@ -21,7 +21,7 @@
       margin-top: 20px;
       font-size: 20px;
     }
-    .inventory, #achievementPanel, #battlePreview {
+    .inventory, #achievementPanel, #battlePreview, #mapPanel {
       margin-top: 20px;
       padding: 10px;
       border: 2px solid #555;
@@ -38,128 +38,16 @@
       border-bottom: 1px solid #444;
       cursor: pointer;
     }
-    .r3, .r4, .r5 {
-      color: lightblue;
-      font-weight: bold;
-    }
-    .r6 {
-      color: violet;
-      font-weight: bold;
-    }
-    .r7 {
-      color: orange;
-      font-weight: bold;
-    }
-    .r8 {
-      color: darkorange;
-      font-weight: bold;
-    }
-    .r9 {
-      color: gold;
-      font-weight: bold;
-    }
-    .r10 {
-      color: white;
-      background: gold;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: bold;
-      animation: glow 1.5s infinite;
-    }
-    #mapPanel {
-      position: relative;
-      height: 300px;
-      background: #111;
-      margin-top: 10px;
-      border-radius: 12px;
-    }
-    #gameNotifications {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      width: 250px;
-      z-index: 9999;
-    }
-    #bossHealthContainer {
-      width: 80%;
-      height: 20px;
-      background: #333;
-      border-radius: 10px;
-      margin: 5px auto;
-      display: none;
-    }
-    #bossHealthBar {
-      height: 100%;
-      width: 100%;
-      background: red;
-      border-radius: 10px;
-    }
-    #loginPanel {
-      margin-top: 50px;
-    }
-    #playerInfo {
-      margin-top: 10px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-    }
-    #playerAvatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-    }
-    #syncControls {
-      margin-top: 10px;
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    #syncStatus {
-      margin-left: 5px;
-    }
-    #lastSynced {
-      margin-left: 5px;
-    }
-    @keyframes notifSlide {
-      0% {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      10% {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      90% {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      100% {
-        opacity: 0;
-        transform: translateY(-20px);
-      }
-    }
-    @keyframes glow {
-      0% {
-        box-shadow: 0 0 5px gold;
-      }
-      50% {
-        box-shadow: 0 0 20px gold;
-      }
-      100% {
-        box-shadow: 0 0 5px gold;
-      }
-    }
+    .r3, .r4, .r5 { color: lightblue; font-weight: bold; }
+    .r6 { color: violet; font-weight: bold; }
+    .r7 { color: orange; font-weight: bold; }
+    .r8 { color: darkorange; font-weight: bold; }
+    .r9 { color: gold; font-weight: bold; }
+    .r10 { color: white; background: gold; padding: 2px 6px; border-radius: 4px; font-weight: bold; animation: glow 1.5s infinite; }
+    @keyframes glow { 0% { box-shadow: 0 0 5px gold; } 50% { box-shadow: 0 0 20px gold; } 100% { box-shadow: 0 0 5px gold; } }
     @media (max-width: 600px) {
-      #mapPanel {
-        height: 200px;
-      }
-      .inventory,
-      #achievementPanel,
-      #battlePreview {
-        max-width: 95%;
-      }
+      #mapPanel { height: 200px; }
+      .inventory, #achievementPanel, #battlePreview { max-width: 95%; }
     }
   </style>
 </head>
@@ -167,7 +55,7 @@
 
 <!-- LOGIN PANEL -->
 <div id="loginPanel">
-  <h2>🚀 Galactic Drop Pod</h2>
+  <h2>Base</h2>
   <button onclick="googleLogin()">Login with Google</button>
 </div>
 
@@ -206,7 +94,12 @@
     </div>
   </div>
 
-  <div id="mapPanel"></div>
+  <div id="mapPanel">
+    <h3>Map</h3>
+    <button onclick="startBossBattle()">Start Boss Battle</button>
+    <button onclick="startMiniGame()">Start Mini Game</button>
+    <div id="mapLocations">Loading map...</div>
+  </div>
 
   <div id="achievementPanel">
     <h3>Achievements</h3>
@@ -424,8 +317,51 @@ function updateSyncStatus(status) {
   document.getElementById("syncIcon").innerText = status === "online" ? "✅" : "❌";
 }
 
-// ---------------- AUTO SAVE ----------------
-window.addEventListener("beforeunload", saveGameData);
+// ---------------- BOSS BATTLE ----------------
+function startBossBattle() {
+  let bossHealth = 100;
+  let bossAttack = 15;
+  let playerHealth = 100;
+  let playerAttack = 20;
+  let log = [];
+
+  function combatTurn() {
+    if (playerHealth <= 0 || bossHealth <= 0) {
+      if (playerHealth <= 0) log.push("You were defeated by the boss!");
+      if (bossHealth <= 0) log.push("You defeated the boss!");
+      document.getElementById("combatLog").innerText = log.join("\n");
+      return;
+    }
+    
+    // Player's turn
+    bossHealth -= playerAttack;
+    log.push(`You hit the boss for ${playerAttack} damage!`);
+    
+    // Boss's turn
+    playerHealth -= bossAttack;
+    log.push(`The boss hits you for ${bossAttack} damage!`);
+    
+    // Update UI
+    document.getElementById("bossHealthBar").style.width = `${(bossHealth / 100) * 100}%`;
+    document.getElementById("combatLog").innerText = log.join("\n");
+
+    setTimeout(combatTurn, 1500); // Repeat turn
+  }
+
+  combatTurn();
+}
+
+// ---------------- MINI GAME ----------------
+function startMiniGame() {
+  let success = Math.random() > 0.5; // 50% chance to succeed
+  if (success) {
+    showNotification("You completed the mini-game! +100 Orbs.");
+    orbs += 100;
+  } else {
+    showNotification("You failed the mini-game... Better luck next time.");
+  }
+  saveGameData();
+}
 
 // ---------------- INITIALIZE ----------------
 updateUI(); renderMap(); renderAchievements();
