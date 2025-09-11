@@ -118,261 +118,206 @@
 
 <div id="gameNotifications"></div>
 
-<!-- Include Firebase SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-analytics.js"></script>
+<!-- Firebase Modular SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js';
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.1.3/firebase-auth.js';
+  import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js';
+  import { getAnalytics } from 'https://www.gstatic.com/firebasejs/9.1.3/firebase-analytics.js';
 
-<script>
-// ---------------- FIREBASE ----------------
-const firebaseConfig = {
-  apiKey: "AIzaSyDlfDBnFHP78CnP7H_J6fU40-R_2sq3gRU",
-  authDomain: "basegame-4c97c.firebaseapp.com",
-  projectId: "basegame-4c97c",
-  storageBucket: "basegame-4c97c.appspot.com",
-  messagingSenderId: "275532742335",
-  appId: "1:275532742335:web:dcdabf04452470054dd00a",
-  measurementId: "G-ZDNWTVJT2E"
-};
+  // ---------------- FIREBASE ----------------
+  const firebaseConfig = {
+    apiKey: "AIzaSyDlfDBnFHP78CnP7H_J6fU40-R_2sq3gRU",
+    authDomain: "basegame-4c97c.firebaseapp.com",
+    projectId: "basegame-4c97c",
+    storageBucket: "basegame-4c97c.appspot.com",
+    messagingSenderId: "275532742335",
+    appId: "1:275532742335:web:dcdabf04452470054dd00a",
+    measurementId: "G-ZDNWTVJT2E"
+  };
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const analytics = firebase.analytics();
-const auth = firebase.auth();
-const db = firebase.firestore();
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const analytics = getAnalytics(app);
 
-// ---------------- LOGIN ----------------
-function googleLogin() {
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider)
-    .then(result => {
-      const user = result.user;
+  // ---------------- LOGIN ----------------
+  function googleLogin() {
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider)
+      .then(result => {
+        const user = result.user;
+        document.getElementById("playerName").innerText = user.displayName;
+        document.getElementById("playerAvatar").src = user.photoURL;
+        document.getElementById("loginPanel").style.display = "none";
+        document.getElementById("gamePanel").style.display = "block";
+        loadGameData(user.uid);
+        showNotification(`Logged in as ${user.displayName}`);
+      })
+      .catch(err => alert(err.message));
+  }
+
+  onAuthStateChanged(auth, user => {
+    if (user) {
       document.getElementById("playerName").innerText = user.displayName;
       document.getElementById("playerAvatar").src = user.photoURL;
       document.getElementById("loginPanel").style.display = "none";
       document.getElementById("gamePanel").style.display = "block";
       loadGameData(user.uid);
-      showNotification(`Logged in as ${user.displayName}`);
-    }).catch(err => alert(err.message));
-}
-
-auth.onAuthStateChanged(user => {
-  if (user) {
-    document.getElementById("playerName").innerText = user.displayName;
-    document.getElementById("playerAvatar").src = user.photoURL;
-    document.getElementById("loginPanel").style.display = "none";
-    document.getElementById("gamePanel").style.display = "block";
-    loadGameData(user.uid);
-  } else {
-    document.getElementById("loginPanel").style.display = "block";
-    document.getElementById("gamePanel").style.display = "none";
-  }
-});
-
-// ---------------- GAME STATE ----------------
-let orbs = 1600, scrap = 0, bossScrapA = 0;
-let pullCount = 0, legendaryBossesDefeated = 0, eliteEventsDefeated = 0;
-let activeOverdrives = [], inventory = [];
-let currentUID = "";
-
-// Gacha pool and rates
-let pool = [
-  { name: "NICO Theseus", rarity: 10 }, { name: "FREDRIK Astartes", rarity: 7 },
-  { name: "Osiris", rarity: 9 }, { name: "Architect", rarity: 9 },
-  { name: "Placeholder 7", rarity: 6 }, { name: "Placeholder 6", rarity: 5 },
-  { name: "Placeholder 5", rarity: 4 }, { name: "Placeholder 4", rarity: 3 },
-  { name: "Placeholder 3", rarity: 3 }, { name: "Placeholder 2", rarity: 3 },
-  { name: "Placeholder 1", rarity: 3 }
-];
-const rawRates = { 10: 0.008, 9: 0.02, 8: 0.008, 7: 0.01, 6: 0.08, 5: 0.13, 4: 0.20, 3: 0.70 };
-const totalRate = Object.values(rawRates).reduce((a, b) => a + b, 0);
-const rates = {};
-for (let k in rawRates) { rates[k] = rawRates[k] / totalRate; }
-
-// ---------------- UTILITY FUNCTIONS ----------------
-function showNotification(msg, duration = 3000) {
-  const notif = document.createElement("div");
-  notif.innerText = msg;
-  notif.style.background = "#333";
-  notif.style.padding = "8px";
-  notif.style.marginTop = "5px";
-  notif.style.borderRadius = "6px";
-  notif.style.animation = `notifSlide ${duration / 1000}s ease forwards`;
-  document.getElementById("gameNotifications").appendChild(notif);
-  setTimeout(() => notif.remove(), duration);
-}
-
-function chooseRarity() {
-  let r = Math.random(), sum = 0;
-  const keys = Object.keys(rates).sort((a, b) => b - a);
-  for (let k of keys) { sum += rates[k]; if (r <= sum) return parseInt(k); }
-  return 3;
-}
-
-function getCharacter(rarity) {
-  const list = pool.filter(c => c.rarity === rarity);
-  return list[Math.floor(Math.random() * list.length)];
-}
-
-// ---------------- INVENTORY ----------------
-function addToInventory(newChar) {
-  let found = inventory.find(c => c.name === newChar.name);
-  if (found) {
-    found.level = Math.min(10, found.level + 1);
-  } else {
-    inventory.push({ ...newChar, level: 1, hp: 100, attack: 10, defense: 5, weapons: [], armor: [] });
-  }
-}
-
-// ---------------- GACHA ----------------
-function pull(times) {
-  const costPerPull = 160;
-  const totalCost = costPerPull * times;
-  if (orbs < totalCost) { alert("Not enough Orbs!"); return; }
-  orbs -= totalCost;
-  pullCount += times;
-  let results = [];
-  for (let i = 0; i < times; i++) {
-    let rarity = chooseRarity();
-    let chara = getCharacter(rarity);
-    results.push(chara);
-    addToInventory(chara);
-  }
-  updateUI(); showResults(results); checkAchievements(); saveGameData();
-}
-
-function showResults(list) {
-  let html = "<h4>Results:</h4>";
-  list.forEach(c => { let cls = "r" + c.rarity; html += `<div class="${cls}">${c.name} (${c.rarity}★)</div>`; });
-  document.getElementById("results").innerHTML = html;
-}
-
-// ---------------- ACHIEVEMENTS ----------------
-function earnOrbs() { orbs += 200; saveGameData(); updateUI(); }
-function resetGame() {
-  if (!confirm("Reset everything?")) return;
-  orbs = 1600; scrap = 0; bossScrapA = 0; inventory = []; pullCount = 0; legendaryBossesDefeated = 0; eliteEventsDefeated = 0;
-  activeOverdrives = []; saveGameData(); updateUI();
-}
-
-function checkAchievements() {
-  achievements.forEach(a => {
-    if (!a.unlocked && a.condition()) { a.unlocked = true; claimAchievementReward(a); }
-  });
-  renderAchievements();
-}
-
-function claimAchievementReward(a) {
-  if (a.reward.orbs) orbs += a.reward.orbs;
-  if (a.reward.scrap) scrap += a.reward.scrap;
-  if (a.reward.bossScrap) bossScrapA += a.reward.bossScrap;
-  showNotification(`🏆 Achievement Unlocked: ${a.name}! Reward: ${JSON.stringify(a.reward)}`);
-  saveGameData();
-}
-
-// ---------------- SAVE / LOAD ----------------
-function saveGameData() {
-  if (!currentUID) return;
-  db.collection("users").doc(currentUID).set({
-    orbs, scrap, bossScrapA, pullCount, legendaryBossesDefeated, eliteEventsDefeated, activeOverdrives, inventory,
-    lastSynced: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(() => updateSyncStatus("online"))
-  .catch(err => { console.error("Save Error:", err); updateSyncStatus("offline"); });
-}
-
-function mergeInventory(cloudInventory) {
-  cloudInventory.forEach(cloudItem => {
-    const localItem = inventory.find(item => item.name === cloudItem.name);
-    if (localItem) {
-      localItem.level = Math.max(localItem.level, cloudItem.level);  // Merge levels
     } else {
-      inventory.push(cloudItem);  // Add new items from cloud
+      document.getElementById("loginPanel").style.display = "block";
+      document.getElementById("gamePanel").style.display = "none";
     }
   });
-}
 
-// ---------------- LOAD GAME ----------------
-function loadGameData(uid) {
-  currentUID = uid;
-  db.collection("users").doc(uid).get().then(doc => {
-    if (doc.exists) {
-      const cloud = doc.data();
-      mergeInventory(cloud.inventory || []);
-      orbs = cloud.orbs ?? 1600;
-      scrap = cloud.scrap ?? 0;
-      bossScrapA = cloud.bossScrapA ?? 0;
-      pullCount = cloud.pullCount ?? 0;
-      legendaryBossesDefeated = cloud.legendaryBossesDefeated ?? 0;
-      eliteEventsDefeated = cloud.eliteEventsDefeated ?? 0;
-      activeOverdrives = cloud.activeOverdrives ?? [];
-      showNotification("☁ Cloud Save Loaded");
+  // ---------------- GAME STATE ----------------
+  let orbs = 1600, scrap = 0, bossScrapA = 0;
+  let pullCount = 0, legendaryBossesDefeated = 0, eliteEventsDefeated = 0;
+  let activeOverdrives = [], inventory = [];
+  let currentUID = "";
+
+  // Gacha pool and rates
+  let pool = [
+    { name: "NICO Theseus", rarity: 10 }, { name: "FREDRIK Astartes", rarity: 7 },
+    { name: "Osiris", rarity: 9 }, { name: "Architect", rarity: 9 },
+    { name: "Placeholder 7", rarity: 6 }, { name: "Placeholder 6", rarity: 5 },
+    { name: "Placeholder 5", rarity: 4 }, { name: "Placeholder 4", rarity: 3 },
+    { name: "Placeholder 3", rarity: 3 }, { name: "Placeholder 2", rarity: 3 },
+    { name: "Placeholder 1", rarity: 3 }
+  ];
+  const rawRates = { 10: 0.008, 9: 0.02, 8: 0.008, 7: 0.01, 6: 0.08, 5: 0.13, 4: 0.20, 3: 0.70 };
+  const totalRate = Object.values(rawRates).reduce((a, b) => a + b, 0);
+  const rates = {};
+  for (let k in rawRates) { rates[k] = rawRates[k] / totalRate; }
+
+  // ---------------- UTILITY FUNCTIONS ----------------
+  function showNotification(msg, duration = 3000) {
+    const notif = document.createElement("div");
+    notif.innerText = msg;
+    notif.style.background = "#333";
+    notif.style.padding = "8px";
+    notif.style.marginTop = "5px";
+    notif.style.borderRadius = "6px";
+    notif.style.animation = `notifSlide ${duration / 1000}s ease forwards`;
+    document.getElementById("gameNotifications").appendChild(notif);
+    setTimeout(() => notif.remove(), duration);
+  }
+
+  function chooseRarity() {
+    let r = Math.random(), sum = 0;
+    const keys = Object.keys(rates).sort((a, b) => b - a);
+    for (let k of keys) { sum += rates[k]; if (r <= sum) return parseInt(k); }
+    return 3;
+  }
+
+  function getCharacter(rarity) {
+    const list = pool.filter(c => c.rarity === rarity);
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  // ---------------- INVENTORY ----------------
+  function addToInventory(newChar) {
+    let found = inventory.find(c => c.name === newChar.name);
+    if (found) {
+      found.level = Math.min(10, found.level + 1);
     } else {
-      saveGameData();
-      showNotification("💾 No Cloud Save found, local save uploaded");
+      inventory.push({ ...newChar, level: 1, hp: 100, attack: 10, defense: 5, weapons: [], armor: [] });
     }
-    updateUI();
-  }).catch(err => { console.error(err); updateSyncStatus("offline"); showNotification("❌ Failed to load Cloud Save"); });
-}
+  }
 
-// ---------------- SYNC ----------------
-function syncUpload() { saveGameData(); }
-function syncDownload() { if (currentUID) loadGameData(currentUID); }
-function syncAll() { if (currentUID) { loadGameData(currentUID); saveGameData(); showNotification("🔄 Synced All"); } }
+  // ---------------- SAVE / LOAD ----------------
+  function saveGameData() {
+    if (!currentUID) return;
+    setDoc(doc(db, "users", currentUID), {
+      orbs, scrap, bossScrapA, pullCount, legendaryBossesDefeated, eliteEventsDefeated, activeOverdrives, inventory,
+      lastSynced: serverTimestamp()
+    }).then(() => updateSyncStatus("online"))
+    .catch(err => { console.error("Save Error:", err); updateSyncStatus("offline"); });
+  }
 
-function updateSyncStatus(status) {
-  document.getElementById("syncStatus").innerText = status.charAt(0).toUpperCase() + status.slice(1);
-  document.getElementById("syncIcon").innerText = status === "online" ? "✅" : "❌";
-}
+  function loadGameData(uid) {
+    currentUID = uid;
+    const userDoc = doc(db, "users", uid);
+    getDoc(userDoc).then(doc => {
+      if (doc.exists()) {
+        const cloud = doc.data();
+        mergeInventory(cloud.inventory || []);
+        orbs = cloud.orbs ?? 1600;
+        scrap = cloud.scrap ?? 0;
+        bossScrapA = cloud.bossScrapA ?? 0;
+        pullCount = cloud.pullCount ?? 0;
+        legendaryBossesDefeated = cloud.legendaryBossesDefeated ?? 0;
+        eliteEventsDefeated = cloud.eliteEventsDefeated ?? 0;
+        activeOverdrives = cloud.activeOverdrives ?? [];
+        showNotification("☁ Cloud Save Loaded");
+      } else {
+        saveGameData();
+        showNotification("💾 No Cloud Save found, local save uploaded");
+      }
+      updateUI();
+    }).catch(err => { console.error(err); updateSyncStatus("offline"); showNotification("❌ Failed to load Cloud Save"); });
+  }
 
-// ---------------- BOSS BATTLE ----------------
-function startBossBattle() {
-  let bossHealth = 100;
-  let bossAttack = 15;
-  let playerHealth = 100;
-  let playerAttack = 20;
-  let log = [];
+  // ---------------- SYNC ----------------
+  function syncUpload() { saveGameData(); }
+  function syncDownload() { if (currentUID) loadGameData(currentUID); }
+  function syncAll() { if (currentUID) { loadGameData(currentUID); saveGameData(); showNotification("🔄 Synced All"); } }
 
-  function combatTurn() {
-    if (playerHealth <= 0 || bossHealth <= 0) {
-      if (playerHealth <= 0) log.push("You were defeated by the boss!");
-      if (bossHealth <= 0) log.push("You defeated the boss!");
+  function updateSyncStatus(status) {
+    document.getElementById("syncStatus").innerText = status.charAt(0).toUpperCase() + status.slice(1);
+    document.getElementById("syncIcon").innerText = status === "online" ? "✅" : "❌";
+  }
+
+  // ---------------- BOSS BATTLE ----------------
+  function startBossBattle() {
+    let bossHealth = 100;
+    let bossAttack = 15;
+    let playerHealth = 100;
+    let playerAttack = 20;
+    let log = [];
+
+    function combatTurn() {
+      if (playerHealth <= 0 || bossHealth <= 0) {
+        if (playerHealth <= 0) log.push("You were defeated by the boss!");
+        if (bossHealth <= 0) log.push("You defeated the boss!");
+        document.getElementById("combatLog").innerText = log.join("\n");
+        return;
+      }
+      
+      // Player's turn
+      bossHealth -= playerAttack;
+      log.push(`You hit the boss for ${playerAttack} damage!`);
+      
+      // Boss's turn
+      playerHealth -= bossAttack;
+      log.push(`The boss hits you for ${bossAttack} damage!`);
+      
+      // Update UI
+      document.getElementById("bossHealthBar").style.width = `${(bossHealth / 100) * 100}%`;
       document.getElementById("combatLog").innerText = log.join("\n");
-      return;
+
+      setTimeout(combatTurn, 1500); // Repeat turn
     }
-    
-    // Player's turn
-    bossHealth -= playerAttack;
-    log.push(`You hit the boss for ${playerAttack} damage!`);
-    
-    // Boss's turn
-    playerHealth -= bossAttack;
-    log.push(`The boss hits you for ${bossAttack} damage!`);
-    
-    // Update UI
-    document.getElementById("bossHealthBar").style.width = `${(bossHealth / 100) * 100}%`;
-    document.getElementById("combatLog").innerText = log.join("\n");
 
-    setTimeout(combatTurn, 1500); // Repeat turn
+    combatTurn();
   }
 
-  combatTurn();
-}
-
-// ---------------- MINI GAME ----------------
-function startMiniGame() {
-  let success = Math.random() > 0.5; // 50% chance to succeed
-  if (success) {
-    showNotification("You completed the mini-game! +100 Orbs.");
-    orbs += 100;
-  } else {
-    showNotification("You failed the mini-game... Better luck next time.");
+  // ---------------- MINI GAME ----------------
+  function startMiniGame() {
+    let success = Math.random() > 0.5; // 50% chance to succeed
+    if (success) {
+      showNotification("You completed the mini-game! +100 Orbs.");
+      orbs += 100;
+    } else {
+      showNotification("You failed the mini-game... Better luck next time.");
+    }
+    saveGameData();
   }
-  saveGameData();
-}
 
-// ---------------- INITIALIZE ----------------
-updateUI(); renderMap(); renderAchievements();
+  // ---------------- INITIALIZE ----------------
+  updateUI(); renderMap(); renderAchievements();
 </script>
+
 </body>
 </html>
