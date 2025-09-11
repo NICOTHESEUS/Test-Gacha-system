@@ -3,236 +3,137 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Drop Pod</title>
+<title>Galactic Drop Pod</title>
 <style>
-body { font-family: Arial, sans-serif; text-align: center; background: #222; color: white; transition: background 0.3s; }
-button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
-button:disabled { background: #555; cursor: not-allowed; }
-.result { margin-top: 20px; font-size: 20px; position: relative; }
-.alert { margin-top: 10px; color: red; font-weight: bold; }
-.r10 { color: white; font-weight: bold; background: gold; padding: 2px 6px; border-radius: 4px; }
-.r9 { color: gold; font-weight: bold; }
-.r8 { color: darkorange; font-weight: bold; }
-.r7 { color: orange; font-weight: bold; }
-.r6 { color: violet; }
-.r5 { color: pink; }
-.r4 { color: cyan; }
-.r3 { color: lightblue; }
-.inventory { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
-.inventory h2 { text-align: center; }
-.inv-item { padding: 6px; border-bottom: 1px solid #444; margin-bottom: 4px; cursor: pointer; }
-.inv-item.selected { border: 2px solid limegreen; background: #333; }
-.stats { font-size: 14px; color: #ccc; margin-top: 2px; }
-.exp-bar-container { background: #444; width: 100%; height: 10px; border-radius: 5px; margin-top: 4px; }
-.exp-bar { background: limegreen; height: 100%; border-radius: 5px; transition: width 0.3s; }
-.upgrade-buttons { margin-top: 6px; text-align: center; }
-.upgrade-buttons button { font-size: 12px; padding: 2px 6px; margin: 2px; }
-
-/* Glow animation for 6★+ */
-@keyframes glow {
-  0% { box-shadow: 0 0 5px white; }
-  50% { box-shadow: 0 0 15px white; }
-  100% { box-shadow: 0 0 5px white; }
-}
-.flash-10 { animation: glow 0.8s ease-in-out 1; background-color: gold; color: black; border-radius: 5px; }
-.flash-9 { animation: glow 0.8s ease-in-out 1; background-color: yellow; color: black; border-radius: 5px; }
-.flash-8 { animation: glow 0.8s ease-in-out 1; background-color: darkorange; color: black; border-radius: 5px; }
-.flash-7 { animation: glow 0.8s ease-in-out 1; background-color: orange; color: black; border-radius: 5px; }
-.flash-6 { animation: glow 0.8s ease-in-out 1; background-color: purple; color: white; border-radius: 5px; }
+  body { font-family: Arial,sans-serif; text-align:center; background:#222; color:white; margin:0; }
+  button { padding:10px 20px; margin:5px; cursor:pointer; }
+  .result { margin-top:20px; font-size:20px; }
+  .inventory, #achievementPanel, #battlePreview { margin-top:20px; padding:10px; border:2px solid #555; border-radius:12px; background:#111; max-width:600px; margin-left:auto;margin-right:auto; }
+  .inv-item { padding:4px; border-bottom:1px solid #444; cursor:pointer; }
+  .r3, .r4, .r5 { color:lightblue; font-weight:bold; }
+  .r6 { color:violet; font-weight:bold; }
+  .r7 { color:orange; font-weight:bold; }
+  .r8 { color:darkorange; font-weight:bold; }
+  .r9 { color:gold; font-weight:bold; }
+  .r10 { color:white; background:gold; padding:2px 6px; border-radius:4px; font-weight:bold; }
+  #mapPanel { position:relative; height:300px; background:#111; margin-top:10px; border-radius:12px; }
+  #gameNotifications { position:fixed; top:10px; right:10px; width:250px; z-index:9999; }
+  @keyframes notifSlide { 0%{opacity:0;transform:translateY(20px);}10%{opacity:1;transform:translateY(0);}90%{opacity:1;transform:translateY:0;}100%{opacity:0;transform:translateY(-20px);} }
+  @keyframes glow { 0%{box-shadow:0 0 5px gold;}50%{box-shadow:0 0 20px gold;}100%{box-shadow:0 0 5px gold;} }
 </style>
 </head>
 <body>
-<h1>🚀 Drop Pod</h1>
-<p>You have <span id="orbs">1600</span> Orbs | Scrap: <span id="scrap">0</span></p>
-<p>Pity: <span id="pity">0</span> pulls since last 10★</p>
-<div class="alert" id="alertMsg"></div>
+<h1>🚀 Galactic Drop Pod</h1>
 
-<button onclick="earnOrbs()">Earn 200 Orbs</button>
-<br/>
-<button onclick="pull(1)">Pull 1 (<span id="cost1">160</span>)</button>
-<button onclick="pull(10)">Pull 10 (<span id="cost10">1600</span>)</button>
-<button onclick="resetGame()">Reset Game</button>
+<div id="resourceBar" style="display:flex;gap:20px;justify-content:center;margin-top:10px;">
+  <div>🚀 Orbs: <span id="orbsDisplay">1600</span></div>
+  <div>🔧 Scrap: <span id="scrapDisplay">0</span></div>
+  <div>💎 Boss Scrap: <span id="bossScrapDisplay">0</span></div>
+  <div>💥 Overdrive: <span id="overdriveDisplay">None</span></div>
+</div>
+
+<!-- Gacha Pulls -->
+<div style="margin-top:15px;">
+  <button onclick="pull(1)">Pull 1 (160 Orbs)</button>
+  <button onclick="pull(10)">Pull 10 (1600 Orbs)</button>
+  <button onclick="earnOrbs()">Earn 200 Orbs</button>
+  <button onclick="resetGame()">Reset Game</button>
+</div>
 
 <div class="result" id="results"></div>
 
 <div class="inventory">
-<h2>Inventory</h2>
-<div id="inventoryList">Empty</div>
+  <h3>Units</h3>
+  <div id="unitListPanel">Empty</div>
 </div>
 
-<audio id="sound-10" src="sound-10.mp3"></audio>
-<audio id="sound-9" src="sound-9.mp3"></audio>
-<audio id="sound-8" src="sound-8.mp3"></audio>
-<audio id="sound-7" src="sound-7.mp3"></audio>
-<audio id="sound-6" src="sound-6.mp3"></audio>
-<audio id="sound-low" src="sound-low.mp3"></audio>
+<div id="battlePreview">
+  <div id="combatLog"></div>
+</div>
+
+<div id="mapPanel"></div>
+
+<div id="achievementPanel">
+  <h3>Achievements</h3>
+  <div id="achievementList"></div>
+</div>
+
+<div id="gameNotifications"></div>
 
 <script>
-let orbs = localStorage.getItem("dropPodOrbs") ? parseInt(localStorage.getItem("dropPodOrbs")) : 1600;
-let pity = localStorage.getItem("dropPodPity") ? parseInt(localStorage.getItem("dropPodPity")) : 0;
-let inventory = localStorage.getItem("dropPodInventory") ? JSON.parse(localStorage.getItem("dropPodInventory")) : [];
-let scrap = localStorage.getItem("dropPodScrap") ? parseInt(localStorage.getItem("dropPodScrap")) : 0;
-let selectedCharIndex = null;
+// --- GAME STATE ---
+let orbs = 1600, scrap = 0, bossScrapA = 0;
+let pullCount=0, legendaryBossesDefeated=0, eliteEventsDefeated=0;
+let activeOverdrives = [];
+let inventory = [];
+let unitMaxLevel = 10;
 
-const pool = [
-  { name: "NICO Theseus", rarity: 10 },
-  { name: "FREDRIK Astartes", rarity: 9 },
-  { name: "Osiris", rarity: 8 },
-  { name: "Architect", rarity: 8 },
-  { name: "Placeholder 7", rarity: 7 },
-  { name: "Placeholder 6", rarity: 6 },
-  { name: "Placeholder 5", rarity: 5 },
-  { name: "Placeholder 4", rarity: 4 },
-  { name: "Placeholder 3", rarity: 3 },
-  { name: "Placeholder 2", rarity: 3 },
-  { name: "Placeholder 1", rarity: 3 },
+// --- GACHA POOL ---
+let pool = [
+  {name:"NICO Theseus", rarity:10},
+  {name:"FREDRIK Astartes", rarity:7},
+  {name:"Osiris", rarity:9},
+  {name:"Architect", rarity:9},
+  {name:"Placeholder 7", rarity:6},
+  {name:"Placeholder 6", rarity:5},
+  {name:"Placeholder 5", rarity:4},
+  {name:"Placeholder 4", rarity:3},
+  {name:"Placeholder 3", rarity:3},
+  {name:"Placeholder 2", rarity:3},
+  {name:"Placeholder 1", rarity:3}
 ];
 
-const rates = {10:0.002,9:0.005,8:0.008,7:0.01,6:0.08,5:0.13,4:0.20,3:0.565};
-const baseStats = {10:{hp:2000,atk:300,def:150},9:{hp:1500,atk:200,def:100},8:{hp:1200,atk:180,def:90},7:{hp:1000,atk:150,def:80},6:{hp:800,atk:120,def:60},5:{hp:600,atk:100,def:50},4:{hp:400,atk:80,def:30},3:{hp:200,atk:50,def:20}};
-const maxLevel = {3:20,4:25,5:30,6:35,7:40,8:45,9:50,10:60};
+const rates = {10:0.008,9:0.02,8:0.008,7:0.01,6:0.08,5:0.13,4:0.20,3:0.70};
 
-function chooseRarity() {
-  let r = Math.random();
-  let sum = 0;
-  const keys = Object.keys(rates).sort((a,b)=>b-a);
-  for (let k of keys) {
-    let chance = rates[k];
-    if(k==10 && pity>=80) chance=1;
-    sum += chance;
-    if(r <= sum){
-      if(parseInt(k)===10) pity=0; else pity++;
-      return parseInt(k);
-    }
-  }
-  pity++;
-  return 3;
-}
+// --- ACHIEVEMENTS ---
+const achievements = [
+  {id:1,name:"First Pull",description:"Perform your first Gacha Pull",condition:()=>pullCount>=1,reward:{orbs:50,scrap:50},unlocked:false},
+  {id:2,name:"Collector",description:"Obtain 10 unique units",condition:()=>inventory.filter(u=>u.level===1).length>=10,reward:{scrap:200},unlocked:false},
+  {id:3,name:"Elite Slayer",description:"Defeat 5 Elite Enemies",condition:()=>eliteEventsDefeated>=5,reward:{bossScrap:50},unlocked:false},
+  {id:4,name:"Legendary Conqueror",description:"Defeat 1 Legendary Boss",condition:()=>legendaryBossesDefeated>=1,reward:{bossScrap:100,orbs:200},unlocked:false},
+  {id:5,name:"Max Level Unit",description:"Level a unit to max level",condition:()=>inventory.some(u=>u.level>=unitMaxLevel),reward:{orbs:100},unlocked:false}
+];
 
-function getCharacter(rarity){ 
-  let list = pool.filter(c=>c.rarity===rarity); 
-  return list[Math.floor(Math.random()*list.length)];
-}
+// --- GALAXY MAP ---
+let galaxyProgression = [
+  {id:1,name:"Aurora Prime",type:"planet",x:20,y:50,unlocked:true},
+  {id:2,name:"Crimson Outpost",type:"planet",x:120,y:80,unlocked:false},
+  {id:3,name:"Obsidian Stronghold",type:"planet",x:220,y:40,unlocked:false},
+  {id:4,name:"Celestial Nexus",type:"planet",x:320,y:100,unlocked:false}
+];
 
-function playPullEffect(rarity){
-  if(rarity>=10) document.getElementById('sound-10').play();
-  else if(rarity===9) document.getElementById('sound-9').play();
-  else if(rarity===8) document.getElementById('sound-8').play();
-  else if(rarity===7) document.getElementById('sound-7').play();
-  else if(rarity===6) document.getElementById('sound-6').play();
-  else document.getElementById('sound-low').play();
-  // Sparkle/animation removed
-}
+// --- UTILITY ---
+function saveAll(){localStorage.setItem("orbs",orbs);localStorage.setItem("scrap",scrap);localStorage.setItem("bossScrapA",bossScrapA);localStorage.setItem("inventory",JSON.stringify(inventory));}
+function showNotification(msg,duration=3000){const notif=document.createElement("div");notif.innerText=msg;notif.style.background="#333";notif.style.padding="8px";notif.style.marginTop="5px";notif.style.borderRadius="6px";notif.style.animation=`notifSlide ${duration/1000}s ease forwards`;document.getElementById("gameNotifications").appendChild(notif);setTimeout(()=>notif.remove(),duration);}
+function chooseRarity(){let r=Math.random(),sum=0;const keys=Object.keys(rates).sort((a,b)=>b-a);for(let k of keys){sum+=rates[k];if(r<=sum)return parseInt(k);}return 3;}
+function getCharacter(rarity){let list=pool.filter(c=>c.rarity===rarity);return list[Math.floor(Math.random()*list.length)];}
+function addToInventory(newChar){let found=inventory.find(c=>c.name===newChar.name);if(found){found.level=Math.min(unitMaxLevel,found.level+1);}else{inventory.push({...newChar,level:1,hp:100,attack:10,defense:5});}}
+function showResults(list){let html="<h4>Results:</h4>";list.forEach(c=>{let cls="r"+c.rarity;html+=`<div class="${cls}">${c.name} (${c.rarity}★)</div>`});document.getElementById("results").innerHTML=html;}
+function earnOrbs(){orbs+=200;saveAll();updateUI();}
+function resetGame(){if(!confirm("Reset everything?")) return; orbs=1600;scrap=0;bossScrapA=0;inventory=[];saveAll();updateUI();}
+function checkAchievements(){achievements.forEach(a=>{if(!a.unlocked&&a.condition()){a.unlocked=true;claimAchievementReward(a)}});renderAchievements();}
+function claimAchievementReward(a){if(a.reward.orbs) orbs+=a.reward.orbs;if(a.reward.scrap) scrap+=a.reward.scrap;if(a.reward.bossScrap) bossScrapA+=a.reward.bossScrap;showNotification(`🏆 Achievement Unlocked: ${a.name}! Reward: ${JSON.stringify(a.reward)}`);saveAll();}
+function renderAchievements(){const panel=document.getElementById("achievementList");panel.innerHTML="";achievements.forEach(a=>{const div=document.createElement("div");div.className="inv-item";div.style.opacity=a.unlocked?"0.6":"1";div.innerHTML=`<strong>${a.name}</strong> - ${a.description} ${a.unlocked?"✅":""}`;panel.appendChild(div);});}
+function renderMap(){const mapPanel=document.getElementById("mapPanel");mapPanel.innerHTML="";galaxyProgression.forEach(loc=>{const marker=document.createElement("div");marker.style.position="absolute";marker.style.width="50px";marker.style.height="50px";marker.style.borderRadius="50%";marker.style.left=loc.x+"px";marker.style.top=loc.y+"px";marker.style.background=loc.unlocked?"#0af":"#444";marker.style.cursor=loc.unlocked?"pointer":"not-allowed";marker.title=loc.name+(loc.unlocked?"":" (Locked)");if(loc.unlocked){marker.onclick=()=>previewBattle({name:loc.name,difficulty:1,baseHP:100,enemies:3,boss:false,reward:{scrap:50,bossScrap:0}});}mapPanel.appendChild(marker);});}
+function updateUI(){document.getElementById("orbsDisplay").innerText=orbs;document.getElementById("scrapDisplay").innerText=scrap;document.getElementById("bossScrapDisplay").innerText=bossScrapA;document.getElementById("overdriveDisplay").innerText=activeOverdrives.length>0?activeOverdrives.map(o=>o.name).join(","):"None";renderUnitListPanel();renderMap();}
+function renderUnitListPanel(){const panel=document.getElementById("unitListPanel");panel.innerHTML="";inventory.forEach(u=>{const div=document.createElement("div");div.className="inv-item r"+u.rarity;div.innerText=`${u.name} Lv.${u.level} HP:${u.hp}`;panel.appendChild(div);});}
 
-function showAlert(msg){ document.getElementById('alertMsg').innerText=msg; }
-function clearAlert(){ document.getElementById('alertMsg').innerText=''; }
-
+// --- GACHA ---
 function pull(times){
   let cost = times===10?1600:160;
-  if(orbs<cost){ showAlert("Not enough Orbs!"); return; }
-  orbs-=cost; clearAlert();
+  if(orbs<cost){alert("Not enough Orbs!");return;}
+  orbs-=cost; pullCount+=times;
   let results=[];
   for(let i=0;i<times;i++){
-    let rarity = chooseRarity();
-    let chara = getCharacter(rarity);
-    results.push(chara);
-    addToInventory(chara);
+    let rarity=chooseRarity(); let chara=getCharacter(rarity); results.push(chara); addToInventory(chara);
   }
-  saveGame(); updateUI(); showResults(results);
+  saveAll(); updateUI(); showResults(results); checkAchievements();
 }
 
-function addToInventory(newChar){
-  let found = inventory.find(c=>c.name===newChar.name && c.rarity===newChar.rarity);
-  if(found){
-    if(found.level<maxLevel[found.rarity]){
-      found.exp=(found.exp||0)+1;
-      let expNeeded=found.level*2;
-      while(found.exp>=expNeeded && found.level<maxLevel[found.rarity]){
-        found.exp-=expNeeded;
-        found.level++;
-        found.stats.hp=Math.round(baseStats[found.rarity].hp*(1+(found.level-1)*0.1));
-        found.stats.atk=Math.round(baseStats[found.rarity].atk*(1+(found.level-1)*0.1));
-        found.stats.def=Math.round(baseStats[found.rarity].def*(1+(found.level-1)*0.1));
-        expNeeded=found.level*2;
-      }
-    } else {
-      let scrapGain = Math.floor(Math.random()*6)+5;
-      scrap+=scrapGain;
-      showAlert(`Extra duplicate! Gained ${scrapGain} scrap.`);
-    }
-  } else {
-    inventory.push({...newChar, level:1, exp:0, stats:{...baseStats[newChar.rarity]}});
-  }
+// --- BATTLE PREVIEW & DAMAGE ---
+function previewBattle(mission){
+  const preview=document.getElementById("battlePreview");
+  preview.innerHTML=`<h4>Mission: ${mission.name}</h4><p>Difficulty: ${mission.difficulty}</p><p>Enemies: ${mission.enemies}</p><p>Base HP: ${mission.baseHP}</p><button onclick="startMission('${mission.name}')">Start Mission</button>`;
 }
-
-function showResults(list){
-  let html="<h2>Results:</h2>";
-  list.forEach(c=>{
-    let cls="r"+c.rarity;
-    html+=`<div class="${cls}">${c.name} (${c.rarity}★) Lv.${(inventory.find(i=>i.name===c.name && i.rarity===c.rarity)||{}).level||1}</div>`;
-    playPullEffect(c.rarity);
-  });
-  document.getElementById('results').innerHTML=html;
-}
-
-function earnOrbs(){ orbs+=200; saveGame(); updateUI(); }
-function resetGame(){ if(!confirm("Reset everything?")) return; orbs=1600;pity=0;inventory=[];scrap=0;saveGame();updateUI(); clearAlert(); }
-
-function saveGame(){
-  localStorage.setItem("dropPodOrbs",orbs);
-  localStorage.setItem("dropPodPity",pity);
-  localStorage.setItem("dropPodInventory",JSON.stringify(inventory));
-  localStorage.setItem("dropPodScrap",scrap);
-}
-
-function selectChar(index){
-  selectedCharIndex=index;
-  const items=document.querySelectorAll('.inv-item');
-  items.forEach(i=>i.classList.remove('selected'));
-  items[index].classList.add('selected');
-  updateUI();
-}
-
-function upgradeStat(stat){
-  if(selectedCharIndex===null) return;
-  const chara = inventory[selectedCharIndex];
-  if(scrap<5){ showAlert("Not enough scrap!"); return; }
-  scrap -=5;
-  const increase = Math.round(baseStats[chara.rarity][stat]*0.1);
-  chara.stats[stat] += increase;
-  showAlert(`${chara.name}'s ${stat.toUpperCase()} increased by ${increase}!`);
-  saveGame(); updateUI();
-}
-
-function updateUI(){
-  document.getElementById("orbs").innerText=orbs;
-  document.getElementById("scrap").innerText=scrap;
-  document.getElementById("pity").innerText=pity;
-  const invEl=document.getElementById("inventoryList");
-  if(inventory.length===0){ 
-    invEl.innerHTML="Empty"; 
-    return; 
-  }
-  invEl.innerHTML=inventory.map((c,i)=>{
-    let cls="r"+c.rarity;
-    let upgradeHTML = "";
-    if(selectedCharIndex===i){
-      upgradeHTML = `
-      <div class="upgrade-buttons">
-        <button onclick="upgradeStat('hp')">+HP</button>
-        <button onclick="upgradeStat('atk')">+ATK</button>
-        <button onclick="upgradeStat('def')">+DEF</button>
-      </div>`;
-    }
-    return `<div class="inv-item ${cls}" onclick="selectChar(${i})">
-      ${c.name} (${c.rarity}★) Lv.${c.level}
-      <div class="stats">HP:${c.stats.hp} ATK:${c.stats.atk} DEF:${c.stats.def} EXP:${c.exp}/${c.level*2}</div>
-      ${upgradeHTML}
-    </div>`;
-  }).join("");
-}
-
-updateUI();
-</script>
-</body>
-</html>
+function startMission(name){
+  const battleDiv=document.getElementById("battlePreview");
